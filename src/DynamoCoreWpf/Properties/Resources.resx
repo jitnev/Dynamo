@@ -2048,4 +2048,7 @@ Next assemblies were loaded several times:
     <value>Error Opening File</value>
     <comment>Nofication Center Title</comment>
   </data>
+  <data name="DynamoViewPackageMenuPackageManager" xml:space="preserve">
+    <value>_Package Manager</value>
+  </data>
 </root>

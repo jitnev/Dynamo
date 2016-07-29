@@ -18,7 +18,7 @@ namespace Dynamo.PackageManager
                 throw new DirectoryNotFoundException(directory.FullName);
             }
 
-            return new RealFileInfo(Greg.Utility.FileUtilities.Zip(directory.FullName));
+            return new RealFileInfo(ACGClientForCEF.Utility.FileUtilities.Zip(directory.FullName));
         }
     }
 }

@@ -4,17 +4,17 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using Dynamo.PackageManager.Interfaces;
-using Greg.Requests;
+using ACGClientForCEF.Models;
 
 namespace Dynamo.PackageManager
 {
     public interface IPackageUploadBuilder
     {
-        PackageUpload NewPackageUpload(Package package, string packagesDirectory, IEnumerable<string> files,
-            PackageUploadHandle handle);
+        //PackageUpload NewPackageUpload(Package package, string packagesDirectory, IEnumerable<string> files,
+        //    PackageUploadHandle handle);
 
-        PackageVersionUpload NewPackageVersionUpload(Package package, string packagesDirectory,
-            IEnumerable<string> files, PackageUploadHandle handle);
+        //PackageVersionUpload NewPackageVersionUpload(Package package, string packagesDirectory,
+        //    IEnumerable<string> files, PackageUploadHandle handle);
     }
 
     internal class PackageUploadBuilder : IPackageUploadBuilder
@@ -41,7 +41,7 @@ namespace Dynamo.PackageManager
             this.builder = builder;
             this.fileCompressor = fileCompressor;
         }
-         
+
         #region Public Operational Class Methods
 
         public static PackageUploadRequestBody NewRequestBody(Package package)
@@ -53,30 +53,30 @@ namespace Dynamo.PackageManager
 
             return new PackageUploadRequestBody(package.Name, package.VersionName, package.Description, package.Keywords, package.License, package.Contents, PackageManagerClient.PackageEngineName,
                                                          version, engineMetadata, package.Group, package.Dependencies,
-                                                         package.SiteUrl, package.RepositoryUrl, package.ContainsBinaries, package.NodeLibraries.Select(x => x.FullName));
+                                                         package.SiteUrl, package.RepositoryUrl, package.ContainsBinaries, package.NodeLibraries.Select(x => x.FullName), package.AssetID);
         }
 
 
-        public PackageUpload NewPackageUpload(Package package, string packagesDirectory, IEnumerable<string> files, PackageUploadHandle handle)
-        {
-            if (package == null) throw new ArgumentNullException("package");
-            if (packagesDirectory == null) throw new ArgumentNullException("packagesDirectory");
-            if (files == null) throw new ArgumentNullException("files");
-            if (handle == null) throw new ArgumentNullException("handle");
+        //public PackageUpload NewPackageUpload(Package package, string packagesDirectory, IEnumerable<string> files, PackageUploadHandle handle)
+        //{
+        //    if (package == null) throw new ArgumentNullException("package");
+        //    if (packagesDirectory == null) throw new ArgumentNullException("packagesDirectory");
+        //    if (files == null) throw new ArgumentNullException("files");
+        //    if (handle == null) throw new ArgumentNullException("handle");
 
-            return new PackageUpload(NewRequestBody(package),
-                BuildAndZip(package, packagesDirectory, files, handle).Name);
-        }
+        //    return new PackageUpload(NewRequestBody(package),
+        //        BuildAndZip(package, packagesDirectory, files, handle).Name);
+        //}
 
-        public PackageVersionUpload NewPackageVersionUpload(Package package, string packagesDirectory, IEnumerable<string> files, PackageUploadHandle handle)
-        {
-            if (package == null) throw new ArgumentNullException("package");
-            if (packagesDirectory == null) throw new ArgumentNullException("packagesDirectory");
-            if (files == null) throw new ArgumentNullException("files");
-            if (handle == null) throw new ArgumentNullException("handle");
+        //public PackageVersionUpload NewPackageVersionUpload(Package package, string packagesDirectory, IEnumerable<string> files, PackageUploadHandle handle)
+        //{
+        //    if (package == null) throw new ArgumentNullException("package");
+        //    if (packagesDirectory == null) throw new ArgumentNullException("packagesDirectory");
+        //    if (files == null) throw new ArgumentNullException("files");
+        //    if (handle == null) throw new ArgumentNullException("handle");
 
-            return new PackageVersionUpload(NewRequestBody(package), BuildAndZip(package, packagesDirectory, files, handle).Name);
-        }
+        //    return new PackageVersionUpload(NewRequestBody(package), BuildAndZip(package, packagesDirectory, files, handle).Name);
+        //}
 
         #endregion
 

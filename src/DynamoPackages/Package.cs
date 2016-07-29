@@ -14,11 +14,11 @@ using Dynamo.Interfaces;
 using Dynamo.Models;
 using Dynamo.Properties;
 using Dynamo.Utilities;
-using Greg.Requests;
 using Dynamo.Logging;
 
 using Newtonsoft.Json;
 using String = System.String;
+using ACGClientForCEF.Models;
 
 namespace Dynamo.PackageManager
 {
@@ -38,6 +38,7 @@ namespace Dynamo.PackageManager
         #region Properties/Fields
 
         public string Name { get; set; }
+        public string AssetID { get; set; }
 
         public string CustomNodeDirectory
         {
@@ -68,40 +69,40 @@ namespace Dynamo.PackageManager
                 // this implies the user would like to rescan additional files
                 EnumerateAdditionalFiles();
                 typesVisibleInManager = value;
-                RaisePropertyChanged("TypesVisibleInManager");
             }
         }
 
+
         private string rootDirectory;
-        public string RootDirectory { get { return rootDirectory; } set { rootDirectory = value; RaisePropertyChanged("RootDirectory"); } }
+        public string RootDirectory { get { return rootDirectory; } set { rootDirectory = value; } }
 
         private string description = "";
-        public string Description { get { return description; } set { description = value; RaisePropertyChanged("Description"); } }
+        public string Description { get { return description; } set { description = value; } }
 
-        private string versionName = "";
-        public string VersionName { get { return versionName; } set { versionName = value; RaisePropertyChanged("VersionName"); } }
+        private string _versionName = "";
+        public string VersionName { get { return _versionName; } set { _versionName = value; } }
 
         private string engineVersion = "";
-        public string EngineVersion { get { return engineVersion; } set { engineVersion = value; RaisePropertyChanged("EngineVersion"); } }
+        public string EngineVersion { get { return engineVersion; } set { engineVersion = value; } }
 
         private string license = "";
-        public string License { get { return license; } set { license = value; RaisePropertyChanged("License"); } }
+        public string License { get { return license; } set { license = value; } }
 
         private string contents = "";
-        public string Contents { get { return contents; } set { contents = value; RaisePropertyChanged("Contents"); } }
+        public string Contents { get { return contents; } set { contents = value; } }
 
         private IEnumerable<string> _keywords = new List<string>();
-        public IEnumerable<string> Keywords { get { return _keywords; } set { _keywords = value; RaisePropertyChanged("Keywords"); } }
+        public IEnumerable<string> Keywords { get { return _keywords; } set { _keywords = value; } }
 
         private bool markedForUninstall;
         public bool MarkedForUninstall
         {
             get { return markedForUninstall; }
-            private set { markedForUninstall = value; RaisePropertyChanged("MarkedForUninstall"); }
+            private set { markedForUninstall = value; }
         }
 
         private string _group = "";
-        public string Group { get { return _group; } set { _group = value; RaisePropertyChanged("Group"); } }
+        public string Group { get { return _group; } set { _group = value; } }
 
 
         /// <summary>
@@ -123,11 +124,11 @@ namespace Dynamo.PackageManager
         public String SiteUrl { get; set; }
         public String RepositoryUrl { get; set; }
 
-        public ObservableCollection<Type> LoadedTypes { get; private set; }
-        public ObservableCollection<PackageAssembly> LoadedAssemblies { get; private set; }
-        public ObservableCollection<CustomNodeInfo> LoadedCustomNodes { get; private set; }
-        public ObservableCollection<PackageDependency> Dependencies { get; private set; }
-        public ObservableCollection<PackageFileInfo> AdditionalFiles { get; private set; }
+        public List<Type> LoadedTypes { get; private set; }
+        public List<PackageAssembly> LoadedAssemblies { get; private set; }
+        public List<CustomNodeInfo> LoadedCustomNodes { get; private set; }
+        public List<PackageDependency> Dependencies { get; private set; }
+        public List<PackageFileInfo> AdditionalFiles { get; private set; }
 
         /// <summary>
         ///     A header used to create the package, this data does not reflect runtime
@@ -137,18 +138,19 @@ namespace Dynamo.PackageManager
 
         #endregion
 
-        public Package(string directory, string name, string versionName, string license)
+        public Package(string directory, string name, string versionName, string license, string assetID = "")
         {
             RootDirectory = directory;
             Name = name;
             License = license;
             VersionName = versionName;
-            LoadedTypes = new ObservableCollection<Type>();
-            LoadedAssemblies = new ObservableCollection<PackageAssembly>();
-            Dependencies = new ObservableCollection<PackageDependency>();
-            LoadedCustomNodes = new ObservableCollection<CustomNodeInfo>();
-            AdditionalFiles = new ObservableCollection<PackageFileInfo>();
+            LoadedTypes = new List<Type>();
+            LoadedAssemblies = new List<PackageAssembly>();
+            Dependencies = new List<PackageDependency>();
+            LoadedCustomNodes = new List<CustomNodeInfo>();
+            AdditionalFiles = new List<PackageFileInfo>();
             Header = PackageUploadBuilder.NewRequestBody(this);
+            AssetID = assetID;
         }
 
         public static Package FromDirectory(string rootPath, ILogger logger)
@@ -180,7 +182,9 @@ namespace Dynamo.PackageManager
                     Contents = body.contents,
                     SiteUrl = body.site_url,
                     RepositoryUrl = body.repository_url,
-                    Header = body
+                    Header = body,
+                    //,//TODO: Migration
+                    AssetID = body.AssetID
                 };
                 
                 foreach (var dep in body.dependencies)

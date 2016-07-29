@@ -1,8 +1,7 @@
 
-﻿using Dynamo.Core;
+using ACGClientForCEF.Models;
+using Dynamo.Core;
 
-﻿using Greg.Requests;
-using Greg.Responses;
 
 namespace Dynamo.PackageManager
 {
@@ -29,7 +28,7 @@ namespace Dynamo.PackageManager
         }
 
         public PackageUploadRequestBody Header { get; private set; }
-        public PackageVersionUploadRequestBody VersionHeader { get; private set; }
+        public PackageUploadRequestBody VersionHeader { get; private set; }
         public string Name { get { return Header.name; } }
         public PackageHeader CompletedHeader { get; set; }
 
@@ -40,10 +39,10 @@ namespace Dynamo.PackageManager
             this.Header = header;
         }
 
-        public PackageUploadHandle(PackageVersionUploadRequestBody header)
-        {
-            this.VersionHeader = header;
-        }
+        //public PackageUploadHandle(PackageUploadRequestBody header)
+        //{
+        //    this.VersionHeader = header;
+        //}
 
         public void Error(string errorString)
         {

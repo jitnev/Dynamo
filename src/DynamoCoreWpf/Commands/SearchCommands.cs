@@ -34,10 +34,10 @@ namespace Dynamo.ViewModels
         }
 
 
-        public DelegateCommand ShowPackageManagerSearchCommand
-        {
-            get { return dynamoViewModel.ShowPackageManagerSearchCommand; }
-        }
+        //public DelegateCommand ShowPackageManagerSearchCommand
+        //{
+        //    get { return dynamoViewModel.ShowPackageManagerSearchCommand; }
+        //}
 
         private DelegateCommand toggleLayoutCommand;
         public DelegateCommand ToggleLayoutCommand

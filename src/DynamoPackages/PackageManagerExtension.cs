@@ -8,7 +8,6 @@ using Dynamo.Interfaces;
 using Dynamo.Models;
 using Dynamo.Logging;
 
-using Greg;
 using System.Reflection;
 
 namespace Dynamo.PackageManager
@@ -80,6 +79,20 @@ namespace Dynamo.PackageManager
                 throw new ArgumentException("Incorrectly formatted URL provided for Package Manager address.", "url");
             }
 
+            key = config.AppSettings.Settings["packageManagerFileServerAddress"];
+            string fileUrl = null;
+            if (key != null)
+            {
+                fileUrl = key.Value;
+            }
+
+            OnMessageLogged(LogMessage.Info("Dynamo will use the package manager server at : " + fileUrl));
+
+            if (!Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            {
+                throw new ArgumentException("Incorrectly formatted URL provided for Package Manager address.", "fileUrl");
+            }
+
             PackageLoader = new PackageLoader(startupParams.PathManager.PackagesDirectories);
             PackageLoader.MessageLogged += OnMessageLogged;
             RequestLoadNodeLibraryHandler = startupParams.LibraryLoader.LoadNodeLibrary;
@@ -97,8 +110,10 @@ namespace Dynamo.PackageManager
             var uploadBuilder = new PackageUploadBuilder(dirBuilder, new MutatingFileCompressor());
 
             PackageManagerClient = new PackageManagerClient(
-                new GregClient(startupParams.AuthProvider, url),
+                new ACGClientForCEF.ACGClientForCEF(startupParams.AuthProvider, url, fileUrl),
                 uploadBuilder, PackageLoader.DefaultPackagesDirectory);
+
+            PackageManagerClient.GetGuestSession();
 
             LoadPackages(startupParams.Preferences, startupParams.PathManager);
         }

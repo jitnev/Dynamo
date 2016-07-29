@@ -1,10 +1,8 @@
-﻿using System;
+﻿using ACGClientForCEF.AuthProviders;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
-using Greg;
-using Greg.AuthProviders;
 
 namespace Dynamo.Core
 {

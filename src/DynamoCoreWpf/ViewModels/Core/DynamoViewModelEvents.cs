@@ -7,6 +7,15 @@ namespace Dynamo.ViewModels
 {
     partial class DynamoViewModel
     {
+        public event EventHandler RequestManagePackageManagerDialog;
+        public virtual void OnRequestManagePackageManagerDialog(Object sender, EventArgs e)
+        {
+            if (RequestManagePackageManagerDialog != null)
+            {
+                RequestManagePackageManagerDialog(this, e);
+            }
+        }
+
         public event EventHandler RequestManagePackagesDialog;
         public virtual void OnRequestManagePackagesDialog(Object sender, EventArgs e)
         {
@@ -17,20 +26,20 @@ namespace Dynamo.ViewModels
         }
 
         public event RequestPackagePublishDialogHandler RequestPackagePublishDialog;
-        public void OnRequestPackagePublishDialog(PublishPackageViewModel vm)
+        public void OnRequestPackagePublishDialog(PackageManagerViewModel vm)
         {
             if (RequestPackagePublishDialog != null)
                 RequestPackagePublishDialog(vm);
         }
 
-        public event EventHandler RequestPackageManagerSearchDialog;
-        public virtual void OnRequestPackageManagerSearchDialog(Object sender, EventArgs e)
-        {
-            if (RequestPackageManagerSearchDialog != null)
-            {
-                RequestPackageManagerSearchDialog(this, e);
-            }
-        }
+        //public event EventHandler RequestPackageManagerSearchDialog;
+        //public virtual void OnRequestPackageManagerSearchDialog(Object sender, EventArgs e)
+        //{
+        //    if (RequestPackageManagerSearchDialog != null)
+        //    {
+        //        RequestPackageManagerSearchDialog(this, e);
+        //    }
+        //}
 
         public event EventHandler RequestPackagePathsDialog;
         public virtual void OnRequestPackagePathsDialog(object sender, EventArgs e)

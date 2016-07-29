@@ -2,8 +2,7 @@
 using System.Windows.Controls;
 
 using Dynamo.ViewModels;
-
-using Greg.AuthProviders;
+using ACGClientForCEF.AuthProviders;
 
 namespace Dynamo.Wpf.Controls
 {

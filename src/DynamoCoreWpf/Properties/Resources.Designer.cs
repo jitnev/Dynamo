@@ -1315,6 +1315,15 @@ namespace Dynamo.Wpf.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to _Package Manager.
+        /// </summary>
+        public static string DynamoViewPackageMenuPackageManager {
+            get {
+                return ResourceManager.GetString("DynamoViewPackageMenuPackageManager", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to _Publish Selected Nodes....
         /// </summary>
         public static string DynamoViewPackageMenuPublishNodes {

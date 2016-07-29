@@ -11,7 +11,6 @@ using Dynamo.Models;
 using Dynamo.PackageManager;
 using Dynamo.Selection;
 using Dynamo.Wpf.Interfaces;
-using Greg.AuthProviders;
 
 using Dynamo.Wpf.Properties;
 using Microsoft.Practices.Prism.Commands;
@@ -21,6 +20,8 @@ using System.IO;
 using System.Threading;
 using Dynamo.Graph.Nodes.CustomNodes;
 using Dynamo.Graph.Workspaces;
+using ACGClientForCEF.Requests;
+using ACGClientForCEF.AuthProviders;
 
 namespace Dynamo.ViewModels
 {
@@ -93,7 +94,7 @@ namespace Dynamo.ViewModels
                     else
                     {
                         // Prompt user to accept the terms of use.
-                        ShowTermsOfUseForPublishing();
+                        //ShowTermsOfUseForPublishing();
                     }
 
                 }, TaskScheduler.FromCurrentSynchronizationContext()).
@@ -178,7 +179,7 @@ namespace Dynamo.ViewModels
             set { _downloads = value; }
         }
 
-        public List<PackageManagerSearchElement> CachedPackageList { get; private set; }
+       //public List<PackageManagerSearchElement> CachedPackageList { get; private set; }
 
         public readonly DynamoViewModel DynamoViewModel;
         public AuthenticationManager AuthenticationManager { get; set; }
@@ -209,7 +210,7 @@ namespace Dynamo.ViewModels
             this.DynamoViewModel = dynamoViewModel;
             this.AuthenticationManager = dynamoViewModel.Model.AuthenticationManager;
             Model = model;
-            CachedPackageList = new List<PackageManagerSearchElement>();
+            //CachedPackageList = new List<PackageManagerSearchElement>();
 
             this.ToggleLoginStateCommand = new DelegateCommand(ToggleLoginState, CanToggleLoginState);
 
@@ -253,19 +254,31 @@ namespace Dynamo.ViewModels
                     ws.CustomNodeId,
                     out currentFunInfo))
                 {
-                    var touParams = new TermsOfUseHelperParams
+                    //TODO Jitendra
+                    //var touParams = new TermsOfUseHelperParams
+                    //{
+                    //    PackageManagerClient = Model,
+                    //    AuthenticationManager = DynamoViewModel.Model.AuthenticationManager,
+                    //    ResourceProvider = DynamoViewModel.BrandingResourceProvider,
+                    //    AcceptanceCallback = () => ShowNodePublishInfo(new[]
+                    //    {
+                    //        Tuple.Create(currentFunInfo, currentFunDef)
+                    //    })
+                    //};
+
+                    //var termsOfUseCheck = new TermsOfUseHelper(touParams);
+                    //termsOfUseCheck.Execute();
+
+                    if (AuthenticationManager.LoginState != LoginState.LoggedIn)
+                        AuthenticationManager.Login();
+
+                    if (AuthenticationManager.LoginState == LoginState.LoggedIn)
                     {
-                        PackageManagerClient = Model,
-                        AuthenticationManager = DynamoViewModel.Model.AuthenticationManager,
-                        ResourceProvider = DynamoViewModel.BrandingResourceProvider,
-                        AcceptanceCallback = () => ShowNodePublishInfo(new[]
+                        ShowNodePublishInfo(new[]
                         {
                             Tuple.Create(currentFunInfo, currentFunDef)
-                        })
-                    };
-
-                    var termsOfUseCheck = new TermsOfUseHelper(touParams);
-                    termsOfUseCheck.Execute();
+                        });
+                    }
                     return;
                 }
             }
@@ -282,6 +295,7 @@ namespace Dynamo.ViewModels
 
         public void PublishNewPackage(object m)
         {
+            //TODO Jitendra
             var termsOfUseCheck = new TermsOfUseHelper(new TermsOfUseHelperParams
             {
                 PackageManagerClient = Model,
@@ -291,6 +305,12 @@ namespace Dynamo.ViewModels
             });
 
             termsOfUseCheck.Execute();
+
+            //if (AuthenticationManager.LoginState != LoginState.LoggedIn)
+            //    AuthenticationManager.Login();
+            
+            //if (AuthenticationManager.LoginState == LoginState.LoggedIn)
+            //    ShowNodePublishInfo();
         }
 
         public bool CanPublishNewPackage(object m)
@@ -361,15 +381,22 @@ namespace Dynamo.ViewModels
                     MessageBoxButton.OK, MessageBoxImage.Question);
             }
 
-            var termsOfUseCheck = new TermsOfUseHelper(new TermsOfUseHelperParams
-            {
-                PackageManagerClient = Model,
-                AuthenticationManager = AuthenticationManager,
-                ResourceProvider = DynamoViewModel.BrandingResourceProvider,
-                AcceptanceCallback = () => ShowNodePublishInfo(defs)
-            });
+            //TODO Jitendra
+            //var termsOfUseCheck = new TermsOfUseHelper(new TermsOfUseHelperParams
+            //{
+            //    PackageManagerClient = Model,
+            //    AuthenticationManager = AuthenticationManager,
+            //    ResourceProvider = DynamoViewModel.BrandingResourceProvider,
+            //    AcceptanceCallback = () => ShowNodePublishInfo(defs)
+            //});
 
-            termsOfUseCheck.Execute();
+            //termsOfUseCheck.Execute();
+
+            if (AuthenticationManager.LoginState != LoginState.LoggedIn)
+                AuthenticationManager.Login();
+
+            if (AuthenticationManager.LoginState == LoginState.LoggedIn)
+                ShowNodePublishInfo(defs);
         }
 
         public bool CanPublishSelectedNodes(object m)
@@ -380,7 +407,19 @@ namespace Dynamo.ViewModels
 
         private void ShowNodePublishInfo()
         {
-            var newPkgVm = new PublishPackageViewModel(DynamoViewModel);
+            var newPkgVm = new PackageManagerViewModel(DynamoViewModel, DynamoViewModel.Model.GetPackageManagerExtension().PackageLoader, "publish");
+            if (!newPkgVm.PublishCompCefHelper.CheckMemberPreference())
+            {
+                if (TermsOfUseHelper.ShowTermsOfUseDialog(true, null))
+                {
+                    newPkgVm.PublishCompCefHelper.UpdateMemberPreference();
+                }
+                else
+                {
+                    return; // Terms of use not accepted.
+                }
+            }
+            
             DynamoViewModel.OnRequestPackagePublishDialog(newPkgVm);
         }
 
@@ -407,27 +446,28 @@ namespace Dynamo.ViewModels
                 }
             }
 
-            var newPkgVm = new PublishPackageViewModel(DynamoViewModel) { CustomNodeDefinitions = funcDefs.Select(pair => pair.Item2).ToList() };
+            var newPkgVm = new PackageManagerViewModel(DynamoViewModel, DynamoViewModel.Model.GetPackageManagerExtension().PackageLoader, "publish");
+            newPkgVm.PublishCompCefHelper.CustomNodeDefinitions = funcDefs.Select(pair => pair.Item2).ToList();
 
             DynamoViewModel.OnRequestPackagePublishDialog(newPkgVm);
         }
 
-        public List<PackageManagerSearchElement> ListAll()
-        {
-            CachedPackageList = new List<PackageManagerSearchElement>();
+        //public List<PackageManagerSearchElement> ListAll()
+        //{
+        //    CachedPackageList = new List<PackageManagerSearchElement>();
 
-            foreach (var header in Model.ListAll())
-            {
-                var ele = new PackageManagerSearchElement(header);
+        //    foreach (var header in Model.ListAll())
+        //    {
+        //        var ele = new PackageManagerSearchElement(header);
+                
+        //        ele.UpvoteRequested += this.Model.Upvote;
+        //        ele.DownvoteRequested += this.Model.Downvote;
 
-                ele.UpvoteRequested += this.Model.Upvote;
-                ele.DownvoteRequested += this.Model.Downvote;
+        //        CachedPackageList.Add( ele );
+        //    }
 
-                CachedPackageList.Add( ele );
-            }
-
-            return CachedPackageList;
-        }
+        //    return CachedPackageList;
+        //}
 
         /// <summary>
         /// This method downloads the package represented by the PackageDownloadHandle,
@@ -437,66 +477,66 @@ namespace Dynamo.ViewModels
         /// </summary>
         internal void DownloadAndInstall(PackageDownloadHandle packageDownloadHandle, string downloadPath)
         {
-            Downloads.Add(packageDownloadHandle);
+            //Downloads.Add(packageDownloadHandle);
 
-            packageDownloadHandle.DownloadState = PackageDownloadHandle.State.Downloading;
+            //packageDownloadHandle.DownloadState = PackageDownloadHandle.State.Downloading;
 
-            Task.Factory.StartNew(() =>
-            {
-                // Attempt to download package
-                string pathDl;
-                var res = Model.DownloadPackage(packageDownloadHandle.Header._id, packageDownloadHandle.VersionName, out pathDl);
+            //Task.Factory.StartNew(() =>
+            //{
+            //    // Attempt to download package
+            //    string pathDl;
+            //    var res = Model.DownloadPackage(packageDownloadHandle.Header._id, packageDownloadHandle.VersionName, out pathDl);
 
-                // if you fail, update download handle and return
-                if (!res.Success)
-                {
-                    packageDownloadHandle.Error(res.Error);
-                    return;
-                }
+            //    // if you fail, update download handle and return
+            //    if (!res.Success)
+            //    {
+            //        packageDownloadHandle.Error(res.Error);
+            //        return;
+            //    }
 
-                // if success, proceed to install the package
-                DynamoViewModel.UIDispatcher.BeginInvoke((Action)(() =>
-                {
-                    try
-                    {
-                        packageDownloadHandle.Done(pathDl);
+            //    // if success, proceed to install the package
+            //    DynamoViewModel.UIDispatcher.BeginInvoke((Action)(() =>
+            //    {
+            //        try
+            //        {
+            //            packageDownloadHandle.Done(pathDl);
 
-                        Package dynPkg;
+            //            Package dynPkg;
 
-                        var pmExtension = DynamoViewModel.Model.GetPackageManagerExtension();
-                        var firstOrDefault = pmExtension.PackageLoader.LocalPackages.FirstOrDefault(pkg => pkg.Name == packageDownloadHandle.Name);
-                        if (firstOrDefault != null)
-                        {
-                            var dynModel = DynamoViewModel.Model;
-                            try
-                            {
-                                firstOrDefault.UninstallCore(dynModel.CustomNodeManager, pmExtension.PackageLoader, dynModel.PreferenceSettings);
-                            }
-                            catch
-                            {
-                                MessageBox.Show(String.Format(Resources.MessageFailToUninstallPackage, 
-                                    DynamoViewModel.BrandingResourceProvider.ProductName,
-                                    packageDownloadHandle.Name),
-                                    Resources.UninstallFailureMessageBoxTitle, 
-                                    MessageBoxButton.OK, MessageBoxImage.Error);
-                            }
-                        }
+            //            var pmExtension = DynamoViewModel.Model.GetPackageManagerExtension();
+            //            var firstOrDefault = pmExtension.PackageLoader.LocalPackages.FirstOrDefault(pkg => pkg.Name == packageDownloadHandle.Name);
+            //            if (firstOrDefault != null)
+            //            {
+            //                var dynModel = DynamoViewModel.Model;
+            //                try
+            //                {
+            //                    firstOrDefault.UninstallCore(dynModel.CustomNodeManager, pmExtension.PackageLoader, dynModel.PreferenceSettings);
+            //                }
+            //                catch
+            //                {
+            //                    MessageBox.Show(String.Format(Resources.MessageFailToUninstallPackage, 
+            //                        DynamoViewModel.BrandingResourceProvider.ProductName,
+            //                        packageDownloadHandle.Name),
+            //                        Resources.UninstallFailureMessageBoxTitle, 
+            //                        MessageBoxButton.OK, MessageBoxImage.Error);
+            //                }
+            //            }
 
-                        if (packageDownloadHandle.Extract(DynamoViewModel.Model, downloadPath, out dynPkg))
-                        {
-                            var p = Package.FromDirectory(dynPkg.RootDirectory, DynamoViewModel.Model.Logger);
-                            pmExtension.PackageLoader.Load(p);
+            //            if (packageDownloadHandle.Extract(DynamoViewModel.Model, downloadPath, out dynPkg))
+            //            {
+            //                var p = Package.FromDirectory(dynPkg.RootDirectory, DynamoViewModel.Model.Logger);
+            //                pmExtension.PackageLoader.Load(p);
 
-                            packageDownloadHandle.DownloadState = PackageDownloadHandle.State.Installed;
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        packageDownloadHandle.Error(e.Message);
-                    }
-                }));
+            //                packageDownloadHandle.DownloadState = PackageDownloadHandle.State.Installed;
+            //            }
+            //        }
+            //        catch (Exception e)
+            //        {
+            //            packageDownloadHandle.Error(e.Message);
+            //        }
+            //    }));
 
-            });
+            //});
 
         }
 
@@ -513,6 +553,11 @@ namespace Dynamo.ViewModels
                 var sInfo = new ProcessStartInfo("explorer.exe", new Uri(Model.BaseUrl).AbsoluteUri);
                 Process.Start(sInfo);
             }
+        }
+
+        public dynamic ExecuteDynamoCefRequest(DynamoRequest req)
+        {
+            return this.Model.ExecuteAndDeserializeDynamoCefRequest(req);
         }
     }
 

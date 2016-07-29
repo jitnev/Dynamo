@@ -7,8 +7,6 @@ using Dynamo.Core;
 using Dynamo.Models;
 using Dynamo.PackageManager.Interfaces;
 using Dynamo.Utilities;
-using Greg.Requests;
-using Greg.Responses;
 using RestSharp.Serializers;
 
 namespace Dynamo.PackageManager

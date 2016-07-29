@@ -1,3 +1,4 @@
+using ACGClientForCEF.AuthProviders;
 using Dynamo.Configuration;
 using Dynamo.Core;
 using Dynamo.Engine;
@@ -24,7 +25,6 @@ using Dynamo.Updates;
 using Dynamo.Utilities;
 using DynamoServices;
 using DynamoUnits;
-using Greg;
 using ProtoCore;
 using ProtoCore.Runtime;
 using System;

@@ -20,9 +20,9 @@ namespace Dynamo.Tests
             var ap = new Mock<IAuthProvider>();
             ap.Setup(x => x.Logout()).Callback(() => logoutCalled = true);
 
-            var pc = new AuthenticationManager(ap.Object);
+            //var pc = new AuthenticationManager(ap.Object);
 
-            pc.Logout();
+            //pc.Logout();
 
             Assert.IsTrue(logoutCalled);
         }
@@ -39,9 +39,9 @@ namespace Dynamo.Tests
             var ap = new Mock<IAuthProvider>();
             ap.Setup(x => x.Login()).Callback(() => called = true);
 
-            var pc = new AuthenticationManager(ap.Object);
+            //var pc = new AuthenticationManager(ap.Object);
 
-            pc.Login();
+            //pc.Login();
 
             Assert.IsTrue(called);
         }

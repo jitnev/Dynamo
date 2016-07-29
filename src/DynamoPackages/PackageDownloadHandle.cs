@@ -4,7 +4,6 @@ using System.Linq;
 using Dynamo.Core;
 using Dynamo.Models;
 
-using Greg.Responses;
 
 namespace Dynamo.PackageManager
 {
@@ -30,8 +29,8 @@ namespace Dynamo.PackageManager
             }
         }
 
-        public Greg.Responses.PackageHeader Header { get; private set; }
-        public string Name { get { return Header.name; } }
+        //public Greg.Responses.PackageHeader Header { get; private set; }
+        public string Name { get; set; }
 
         private string _downloadPath;
         public string DownloadPath { get { return _downloadPath; } set { _downloadPath = value; RaisePropertyChanged("DownloadPath"); } }
@@ -39,14 +38,19 @@ namespace Dynamo.PackageManager
         private string _versionName;
         public string VersionName { get { return _versionName; } set { _versionName = value; RaisePropertyChanged("VersionName"); } }
 
-        public PackageDownloadHandle(Greg.Responses.PackageHeader header, PackageVersion version)
-        {
-            this.Header = header;
-            this.DownloadPath = "";
-            this.VersionName = version.version;
-        }
+        //public PackageDownloadHandle(ACGClientForCEF.Responses.PackageHeader header, PackageVersion version)
+        //{
+        //    this.Header = header;
+        //    this.DownloadPath = "";
+        //    this.VersionName = version.version;
+        //}
 
-        public void Error(string errorString)
+		public PackageDownloadHandle()
+        {
+            this.DownloadPath = "";
+        }
+        
+		public void Error(string errorString)
         {
             this.DownloadState = State.Error;
             this.ErrorString = errorString;
@@ -64,12 +68,12 @@ namespace Dynamo.PackageManager
             return packagesDirectory + @"\" + this.Name.Replace("/", "_").Replace(@"\", "_");
         }
 
-        public bool Extract(DynamoModel dynamoModel, string installDirectory, out Package pkg)
+        public bool Extract(DynamoModel dynamoModel, string installDirectory, out string pkgInstalledPath)
         {
             this.DownloadState = State.Installing;
 
             // unzip, place files
-            var unzipPath = Greg.Utility.FileUtilities.UnZip(DownloadPath);
+            var unzipPath = ACGClientForCEF.Utility.FileUtilities.UnZip(DownloadPath);
             if (!Directory.Exists(unzipPath))
             {
                 throw new Exception(Properties.Resources.PackageEmpty);
@@ -87,11 +91,10 @@ namespace Dynamo.PackageManager
 
             // Copy all the files
             foreach (string newPath in Directory.GetFiles(unzipPath, "*.*", SearchOption.AllDirectories))
-                File.Copy(newPath, newPath.Replace(unzipPath, installedPath));
+                File.Copy(newPath, newPath.Replace(unzipPath, installedPath),true);
 
-            // provide handle to installed package 
-            pkg = new Package(installedPath, Header.name, VersionName, Header.license);
-
+            pkgInstalledPath = installedPath;
+            
             return true;
         }
 

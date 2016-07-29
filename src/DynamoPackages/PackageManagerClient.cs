@@ -1,6 +1,7 @@
-﻿using Greg;
-using Greg.Requests;
-using Greg.Responses;
+﻿using ACGClientForCEF;
+using ACGClientForCEF.Requests;
+using Newtonsoft.Json;
+using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -22,7 +23,9 @@ namespace Dynamo.PackageManager
         [Obsolete] internal static readonly string PackageContainsPythonScriptsConstant =
             "|ContainsPythonScripts(58B25C0B-CBBE-4DDC-AC39-ECBEB8B55B10)";
 
-        private readonly IGregClient client;
+        //private readonly IGregClient client;
+		private readonly IACGClientForCEF cefClient;
+        private readonly IACGClientForCEF cefFileClient;
         private readonly IPackageUploadBuilder uploadBuilder;
 
         /// <summary>
@@ -35,59 +38,60 @@ namespace Dynamo.PackageManager
         /// </summary>
         public string BaseUrl
         {
-            get { return this.client.BaseUrl; }
+            get { return this.cefClient.BaseUrl; }
         }
 
         #endregion
 
-        internal PackageManagerClient(IGregClient client, IPackageUploadBuilder builder, string packagesDirectory)
+        internal PackageManagerClient(IACGClientForCEF client, IPackageUploadBuilder builder, string packagesDirectory)
         {
             this.packagesDirectory = packagesDirectory;
             this.uploadBuilder = builder;
-            this.client = client;
+            //this.client = client;
+			this.cefClient = client;
         }
 
-        internal bool Upvote(string packageId)
-        {
-            return FailFunc.TryExecute(() =>
-            {
-                var pkgResponse = this.client.ExecuteAndDeserialize(new Upvote(packageId));
-                return pkgResponse.success;
-            }, false);
-        }
+        //internal bool Upvote(string packageId)
+        //{
+        //    return FailFunc.TryExecute(() =>
+        //    {
+        //        var pkgResponse = this.cefClient.ExecuteAndDeserialize(new Upvote(packageId));
+        //        return pkgResponse.success;
+        //    }, false);
+        //}
 
-        internal bool Downvote(string packageId)
-        {
-            return FailFunc.TryExecute(() =>
-            {
-                var pkgResponse = this.client.ExecuteAndDeserialize(new Downvote(packageId));
-                return pkgResponse.success;
-            }, false);
-        }
+        //internal bool Downvote(string packageId)
+        //{
+        //    return FailFunc.TryExecute(() =>
+        //    {
+        //        var pkgResponse = this.client.ExecuteAndDeserialize(new Downvote(packageId));
+        //        return pkgResponse.success;
+        //    }, false);
+        //}
 
-        internal PackageManagerResult DownloadPackage(string packageId, string version, out string pathToPackage)
-        {
-            try
-            {
-                var response = this.client.Execute(new PackageDownload(packageId, version));
-                pathToPackage = PackageDownload.GetFileFromResponse(response);
-                return PackageManagerResult.Succeeded();
-            }
-            catch (Exception e)
-            {
-                pathToPackage = null;
-                return PackageManagerResult.Failed(e.Message);
-            }
-        }
+        //internal PackageManagerResult DownloadPackage(string packageId, string version, out string pathToPackage)
+        //{
+        //    try
+        //    {
+        //        var response = this.client.Execute(new PackageDownload(packageId, version));
+        //        pathToPackage = PackageDownload.GetFileFromResponse(response);
+        //        return PackageManagerResult.Succeeded();
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        pathToPackage = null;
+        //        return PackageManagerResult.Failed(e.Message);
+        //    }
+        //}
 
-        internal IEnumerable<PackageHeader> ListAll()
-        {
-            return FailFunc.TryExecute(() => {
-                var nv = HeaderCollectionDownload.ByEngine("dynamo");
-                var pkgResponse = this.client.ExecuteAndDeserializeWithContent<List<PackageHeader>>(nv);
-                return pkgResponse.content;
-            }, new List<PackageHeader>());
-        }
+        //internal IEnumerable<PackageHeader> ListAll()
+        //{
+        //    return FailFunc.TryExecute(() => {
+        //        var nv = HeaderCollectionDownload.ByEngine("dynamo");
+        //        var pkgResponse = this.client.ExecuteAndDeserializeWithContent<List<PackageHeader>>(nv);
+        //        return pkgResponse.content;
+        //    }, new List<PackageHeader>());
+        //}
 
         internal bool GetTermsOfUseAcceptanceStatus()
         {
@@ -97,105 +101,151 @@ namespace Dynamo.PackageManager
         public bool SetTermsOfUseAcceptanceStatus()
         {
             return ExecuteTermsOfUseCall(false);
+
         }
 
         private bool ExecuteTermsOfUseCall(bool queryAcceptanceStatus)
         {
-            return FailFunc.TryExecute(() =>
+            if (queryAcceptanceStatus)
             {
-                var request = new TermsOfUse(queryAcceptanceStatus);
-                var response = client.ExecuteAndDeserializeWithContent<TermsOfUseStatus>(request);
-                return response.content.accepted;
-            }, false);
-        }
+                DynamoRequest memberReq = new DynamoRequest("members", Method.GET);
+                var res = ExecuteAndDeserializeDynamoCefRequest(memberReq);
+                string memberID = res.content.member.id;
 
-        internal PackageUploadHandle PublishAsync(Package package, IEnumerable<string> files, bool isNewVersion)
-        {
-            var packageUploadHandle = new PackageUploadHandle(PackageUploadBuilder.NewRequestBody(package));
-
-            Task.Factory.StartNew(() =>
-            {
-                Publish(package, files, isNewVersion, packageUploadHandle);
-            });
-
-            return packageUploadHandle;
-        }
-
-        internal void Publish(Package package, IEnumerable<string> files, bool isNewVersion, PackageUploadHandle packageUploadHandle)
-        {
-            try
-            {
-                ResponseBody ret = null;
-                if (isNewVersion)
-                {
-                    var pkg = uploadBuilder.NewPackageVersionUpload(package, packagesDirectory, files,
-                        packageUploadHandle);
-                    packageUploadHandle.UploadState = PackageUploadHandle.State.Uploading;
-                    ret = this.client.ExecuteAndDeserialize(pkg);
-                }
+                DynamoRequest req = new DynamoRequest("members/" + memberID + "/preferences?namespace=123D", Method.GET);
+                var response = ExecuteAndDeserializeDynamoCefRequest(req);
+                var content = response.content;
+                if (content.preferences["publish"] == null)
+                    return false;
                 else
-                {
-                    var pkg = uploadBuilder.NewPackageUpload(package, packagesDirectory, files,
-                        packageUploadHandle);
-                    packageUploadHandle.UploadState = PackageUploadHandle.State.Uploading;
-                    ret = this.client.ExecuteAndDeserialize(pkg);
-                }
-                if (ret == null)
-                {
-                    packageUploadHandle.Error("Failed to submit.  Try again later.");
-                    return;
-                }
-
-                if (ret != null && !ret.success)
-                {
-                    packageUploadHandle.Error(ret.message);
-                    return;
-                }
-               
-                packageUploadHandle.Done(null);
+                    return content.preferences["publish"].accepted;
             }
-            catch (Exception e)
+            else
             {
-                packageUploadHandle.Error(e.GetType() + ": " + e.Message);
+                DynamoRequest memberReq = new DynamoRequest("members", Method.GET);
+                var res = ExecuteAndDeserializeDynamoCefRequest(memberReq);
+                string memberID = res.content.member.id;
+
+                DynamoRequest req = new DynamoRequest("members/" + memberID + "/preferences?namespace=123D&preference_name=publish&preference_value={\"accepted\": true}", Method.PUT);
+                var response = ExecuteAndDeserializeDynamoCefRequest(req);
+                return true;
             }
         }
 
-        internal PackageManagerResult DownloadPackageHeader(string id, out PackageHeader header)
-        {
-            var pkgDownload = new HeaderDownload(id);
+        //internal PackageUploadHandle PublishAsync(Package package, IEnumerable<string> files, bool isNewVersion)
+        //{
+        //    var packageUploadHandle = new PackageUploadHandle(PackageUploadBuilder.NewRequestBody(package));
 
-            try
-            {
-                var response = this.client.ExecuteAndDeserializeWithContent<PackageHeader>(pkgDownload);
-                if (!response.success) throw new Exception(response.message);
-                header = response.content;
-            }
-            catch (Exception e)
-            {
-                var a = PackageManagerResult.Failed(e.Message);
-                header = null;
-                return a;
-            }
+        //    Task.Factory.StartNew(() =>
+        //    {
+        //        Publish(package, files, isNewVersion, packageUploadHandle);
+        //    });
 
-            return new PackageManagerResult("", true);
-        }
+        //    return packageUploadHandle;
+        //}
 
-        internal PackageManagerResult Deprecate(string name)
+        //internal void Publish(Package package, IEnumerable<string> files, bool isNewVersion, PackageUploadHandle packageUploadHandle)
+        //{
+        //    try
+        //    {
+        //        ResponseBody ret = null;
+        //        if (isNewVersion)
+        //        {
+        //            var pkg = uploadBuilder.NewPackageVersionUpload(package, packagesDirectory, files,
+        //                packageUploadHandle);
+        //            packageUploadHandle.UploadState = PackageUploadHandle.State.Uploading;
+        //            ret = this.client.ExecuteAndDeserialize(pkg);
+        //        }
+        //        else
+        //        {
+        //            var pkg = uploadBuilder.NewPackageUpload(package, packagesDirectory, files,
+        //                packageUploadHandle);
+        //            packageUploadHandle.UploadState = PackageUploadHandle.State.Uploading;
+        //            ret = this.client.ExecuteAndDeserialize(pkg);
+        //        }
+        //        if (ret == null)
+        //        {
+        //            packageUploadHandle.Error("Failed to submit.  Try again later.");
+        //            return;
+        //        }
+
+        //        if (ret != null && !ret.success)
+        //        {
+        //            packageUploadHandle.Error(ret.message);
+        //            return;
+        //        }
+
+        //        packageUploadHandle.Done(null);
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        packageUploadHandle.Error(e.GetType() + ": " + e.Message);
+        //    }
+        //}
+
+        //internal PackageManagerResult DownloadPackageHeader(string id, out PackageHeader header)
+        //{
+        //    var pkgDownload = new HeaderDownload(id);
+
+        //    try
+        //    {
+        //        var response = this.client.ExecuteAndDeserializeWithContent<PackageHeader>(pkgDownload);
+        //        if (!response.success) throw new Exception(response.message);
+        //        header = response.content;
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        var a = PackageManagerResult.Failed(e.Message);
+        //        header = null;
+        //        return a;
+        //    }
+
+        //    return new PackageManagerResult("", true);
+        //}
+
+        internal PackageManagerResult Deprecate(string assetID)
         {
             return FailFunc.TryExecute(() =>
             {
-                var pkgResponse = this.client.ExecuteAndDeserialize(new Deprecate(name, PackageEngineName));
-                return new PackageManagerResult(pkgResponse.message, pkgResponse.success);
+                DynamoRequest req = new DynamoRequest("assets/" + assetID + "/customdata?custom_data={\"custom_data\": [{\"key\": \"custom_string_deprecated\",\"data\": \"true\"}]}", Method.POST);
+
+                var response = ExecuteAndDeserializeDynamoCefRequest(req);
+                //var content = response.content;
+                return new PackageManagerResult(response.message, response.success);
+
             }, new PackageManagerResult("Failed to send.", false));
         }
 
-        internal PackageManagerResult Undeprecate(string name)
+        internal PackageManagerResult Undeprecate(string assetID)
         {
             return FailFunc.TryExecute(() =>
             {
-                var pkgResponse = this.client.ExecuteAndDeserialize(new Undeprecate(name, PackageEngineName));
-                return new PackageManagerResult(pkgResponse.message, pkgResponse.success);
+                DynamoRequest req = new DynamoRequest("assets/" + assetID + "/customdata?custom_data={\"custom_data\": [{\"key\": \"custom_string_deprecated\",\"data\": \"false\"}]}", Method.POST);
+
+                var response = ExecuteAndDeserializeDynamoCefRequest(req);
+                //var content = response.content;
+                return new PackageManagerResult(response.message, response.success);
             }, new PackageManagerResult("Failed to send.", false));
+        }
+
+        internal CefResponseWithContentBody ExecuteAndDeserializeDynamoCefRequest(DynamoRequest req)
+        {
+            return cefClient.ExecuteAndDeserializeWithContent<ACGClientForCEF.CefResponseWithContentBody>(req);
+        }
+
+        internal CefResponse ExecuteDynamoCefRequest(DynamoRequest req)
+        {
+            return cefClient.Execute(req);
+        }
+
+        internal Dictionary<string,string> GetSession()
+        {
+            return cefClient.AuthProvider.SessionData;
+        }
+
+        internal void GetGuestSession()
+        {
+            cefClient.GetGuestSession();
         }
     }
 }

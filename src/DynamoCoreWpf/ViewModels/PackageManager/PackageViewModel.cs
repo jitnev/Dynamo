@@ -12,6 +12,7 @@ using Dynamo.PackageManager;
 using Microsoft.Practices.Prism.Commands;
 using Microsoft.Practices.Prism.ViewModel;
 using Dynamo.Wpf.Properties;
+using Dynamo.Wpf.Utilities;
 
 namespace Dynamo.ViewModels
 {
@@ -65,15 +66,15 @@ namespace Dynamo.ViewModels
 
             ToggleTypesVisibleInManagerCommand = new DelegateCommand(ToggleTypesVisibleInManager, CanToggleTypesVisibleInManager);
             GetLatestVersionCommand = new DelegateCommand(GetLatestVersion, CanGetLatestVersion);
-            PublishNewPackageVersionCommand = new DelegateCommand(() => ExecuteWithTou(PublishNewPackageVersion), CanPublishNewPackageVersion);
-            PublishNewPackageCommand = new DelegateCommand(() => ExecuteWithTou(PublishNewPackage), CanPublishNewPackage);
+            PublishNewPackageVersionCommand = new DelegateCommand(() => PublishNewPackageVersion(), CanPublishNewPackageVersion);
+            PublishNewPackageCommand = new DelegateCommand(() => PublishNewPackage(), CanPublishNewPackage);
             UninstallCommand = new DelegateCommand(Uninstall, CanUninstall);
             DeprecateCommand = new DelegateCommand(Deprecate, CanDeprecate);
             UndeprecateCommand = new DelegateCommand(Undeprecate, CanUndeprecate);
             UnmarkForUninstallationCommand = new DelegateCommand(UnmarkForUninstallation, CanUnmarkForUninstallation);
             GoToRootDirectoryCommand = new DelegateCommand(GoToRootDirectory, CanGoToRootDirectory);
 
-            Model.LoadedAssemblies.CollectionChanged += LoadedAssembliesOnCollectionChanged;
+            //Model.LoadedAssemblies.CollectionChanged += LoadedAssembliesOnCollectionChanged;
             Model.PropertyChanged += ModelOnPropertyChanged;
 
             this.dynamoViewModel.Model.WorkspaceAdded += WorkspaceAdded;
@@ -187,7 +188,8 @@ namespace Dynamo.ViewModels
 
         private bool CanDeprecate()
         {
-            return dynamoViewModel.Model.AuthenticationManager.HasAuthProvider;
+            return (dynamoViewModel.Model.AuthenticationManager.HasAuthProvider && dynamoViewModel.Model.AuthenticationManager.AuthProvider.SessionData != null &&
+                dynamoViewModel.Model.AuthenticationManager.AuthProvider.SessionData.ContainsKey("session"));
         }
 
         private void Undeprecate()
@@ -208,8 +210,8 @@ namespace Dynamo.ViewModels
         private void PublishNewPackageVersion()
         {
             Model.RefreshCustomNodesFromDirectory(dynamoViewModel.Model.CustomNodeManager, DynamoModel.IsTestMode);
-            var vm = PublishPackageViewModel.FromLocalPackage(dynamoViewModel, Model);
-            vm.IsNewVersion = true;
+            var vm = PublishCefHelper.FromLocalPackage(dynamoViewModel, Model);
+            vm.PublishCompCefHelper.IsNewVersion = true;
 
             dynamoViewModel.OnRequestPackagePublishDialog(vm);
         }
@@ -222,10 +224,10 @@ namespace Dynamo.ViewModels
         private void PublishNewPackage()
         {
             Model.RefreshCustomNodesFromDirectory(dynamoViewModel.Model.CustomNodeManager, DynamoModel.IsTestMode);
-            var vm = PublishPackageViewModel.FromLocalPackage(dynamoViewModel, Model);
-            vm.IsNewVersion = false;
+            //var vm = PublishPackageViewModel.FromLocalPackage(dynamoViewModel, Model);
+            //vm.IsNewVersion = false;
 
-            dynamoViewModel.OnRequestPackagePublishDialog(vm);
+            //dynamoViewModel.OnRequestPackagePublishDialog(vm);
         }
 
         private void ExecuteWithTou(Action acceptanceCallback)

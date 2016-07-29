@@ -5,6 +5,9 @@ using System.Windows.Controls;
 using System.Reflection;
 using Shapeways=ShapewaysClient.ShapewaysClient;
 using Dynamo.Wpf.Properties;
+using System.Net;
+using SharpDX.Text;
+using System.Collections.Generic;
 
 namespace Dynamo.Wpf.Authentication
 {
@@ -19,7 +22,7 @@ namespace Dynamo.Wpf.Authentication
             this.context = context;
         }
 
-        public bool ShowLogin(object o)
+        public Dictionary<string,string> ShowLogin(object o)
         {
             if (o == null) throw new ArgumentException(Resources.InvalidLoginUrl);
 
@@ -32,11 +35,11 @@ namespace Dynamo.Wpf.Authentication
                                 Resources.InvalidLoginUrl,
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Error);
-                return false;
+                return null;
             }
 
             var url = new Uri(o.ToString());
-
+            Dictionary<string, string> sessionData = null;
             var navigateSuccess = false;
 
             // show the login
@@ -53,8 +56,19 @@ namespace Dynamo.Wpf.Authentication
                 {
                     // if the user reaches this path, they've successfully logged in
                     // note that this is necessary, but not sufficient for full authentication
-                    if (args.Uri.LocalPath == "/OAuth/Allow")
+                    if (args.Uri.LocalPath == "/API/v2/login/signedin")
                     {
+                        HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(args.Uri);
+                        request.Method = "GET";
+                        String test = String.Empty;
+                        using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                        {
+                            if (sessionData == null)
+                                sessionData = new Dictionary<string, string>();
+
+                            sessionData.Add("session", response.Headers["X-SESSION"]);
+                            sessionData.Add("secure-session", response.Headers["X-SECURE-SESSION"]);
+                        }
                         navigateSuccess = true;
                         window.Close();
                     }
@@ -64,7 +78,7 @@ namespace Dynamo.Wpf.Authentication
 
             }, null);
 
-            return navigateSuccess;
+            return sessionData;
         }
 
         internal void ShowShapewaysLogin(Shapeways client) 

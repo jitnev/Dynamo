@@ -515,7 +515,8 @@ namespace Dynamo.Controls
 
             dynamoViewModel.RequestPackagePublishDialog += DynamoViewModelRequestRequestPackageManagerPublish;
             dynamoViewModel.RequestManagePackagesDialog += DynamoViewModelRequestShowInstalledPackages;
-            dynamoViewModel.RequestPackageManagerSearchDialog += DynamoViewModelRequestShowPackageManagerSearch;
+            dynamoViewModel.RequestManagePackageManagerDialog += DynamoViewModelRequestShowPackageManager;
+            //dynamoViewModel.RequestPackageManagerSearchDialog += DynamoViewModelRequestShowPackageManagerSearch;
             dynamoViewModel.RequestPackagePathsDialog += DynamoViewModelRequestPackagePaths;
 
             #endregion
@@ -660,12 +661,12 @@ namespace Dynamo.Controls
             }
         }
 
-        private PublishPackageView _pubPkgView;
-        void DynamoViewModelRequestRequestPackageManagerPublish(PublishPackageViewModel model)
+        private PackageManagerView _pubPkgView;
+        void DynamoViewModelRequestRequestPackageManagerPublish(PackageManagerViewModel model)
         {
             if (_pubPkgView == null)
             {
-                _pubPkgView = new PublishPackageView(model)
+                _pubPkgView = new PackageManagerView(model)
                 {
                     Owner = this,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -679,35 +680,35 @@ namespace Dynamo.Controls
             _pubPkgView.Focus();
         }
 
-        private PackageManagerSearchView _searchPkgsView;
-        private PackageManagerSearchViewModel _pkgSearchVM;
-        void DynamoViewModelRequestShowPackageManagerSearch(object s, EventArgs e)
-        {
-            if (!DisplayTermsOfUseForAcceptance())
-                return; // Terms of use not accepted.
+        //private PackageManagerSearchView _searchPkgsView;
+        //private PackageManagerSearchViewModel _pkgSearchVM;
+        //void DynamoViewModelRequestShowPackageManagerSearch(object s, EventArgs e)
+        //{
+        //    if (!DisplayTermsOfUseForAcceptance())
+        //        return; // Terms of use not accepted.
 
-            if (_pkgSearchVM == null)
-            {
-                _pkgSearchVM = new PackageManagerSearchViewModel(dynamoViewModel.PackageManagerClientViewModel);
-            }
+        //    if (_pkgSearchVM == null)
+        //    {
+        //        _pkgSearchVM = new PackageManagerSearchViewModel(dynamoViewModel.PackageManagerClientViewModel);
+        //    }
 
-            if (_searchPkgsView == null)
-            {
-                _searchPkgsView = new PackageManagerSearchView(_pkgSearchVM)
-                {
-                    Owner = this,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner
-                };
+        //    if (_searchPkgsView == null)
+        //    {
+        //        _searchPkgsView = new PackageManagerSearchView(_pkgSearchVM)
+        //        {
+        //            Owner = this,
+        //            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        //        };
 
-                _searchPkgsView.Closed += (sender, args) => _searchPkgsView = null;
-                _searchPkgsView.Show();
+        //        _searchPkgsView.Closed += (sender, args) => _searchPkgsView = null;
+        //        _searchPkgsView.Show();
 
-                if (_searchPkgsView.IsLoaded && IsLoaded) _searchPkgsView.Owner = this;
-            }
+        //        if (_searchPkgsView.IsLoaded && IsLoaded) _searchPkgsView.Owner = this;
+        //    }
 
-            _searchPkgsView.Focus();
-            _pkgSearchVM.RefreshAndSearchAsync();
-        }
+        //    _searchPkgsView.Focus();
+        //    _pkgSearchVM.RefreshAndSearchAsync();
+        //}
 
         private void DynamoViewModelRequestPackagePaths(object sender, EventArgs e)
         {
@@ -741,6 +742,27 @@ namespace Dynamo.Controls
                 if (_installedPkgsView.IsLoaded && IsLoaded) _installedPkgsView.Owner = this;
             }
             _installedPkgsView.Focus();
+        }
+
+        private PackageManagerView _packageManagerView;
+        void DynamoViewModelRequestShowPackageManager(object s, EventArgs e)
+        {
+            if (_packageManagerView == null)
+            {
+                var pmExtension = dynamoViewModel.Model.GetPackageManagerExtension();
+                _packageManagerView = new PackageManagerView(new PackageManagerViewModel(dynamoViewModel,
+                    pmExtension.PackageLoader, "assets"))
+                {
+                    Owner = this,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
+
+                _packageManagerView.Closed += (sender, args) => _packageManagerView = null;
+                _packageManagerView.Show();
+
+                if (_packageManagerView.IsLoaded && IsLoaded) _packageManagerView.Owner = this;
+            }
+            _packageManagerView.Focus();
         }
 
         void ClipBoard_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -1027,7 +1049,8 @@ namespace Dynamo.Controls
             //PACKAGE MANAGER
             dynamoViewModel.RequestPackagePublishDialog -= DynamoViewModelRequestRequestPackageManagerPublish;
             dynamoViewModel.RequestManagePackagesDialog -= DynamoViewModelRequestShowInstalledPackages;
-            dynamoViewModel.RequestPackageManagerSearchDialog -= DynamoViewModelRequestShowPackageManagerSearch;
+            dynamoViewModel.RequestManagePackageManagerDialog -= DynamoViewModelRequestShowPackageManager;
+            //dynamoViewModel.RequestPackageManagerSearchDialog -= DynamoViewModelRequestShowPackageManagerSearch;
             dynamoViewModel.RequestPackagePathsDialog -= DynamoViewModelRequestPackagePaths;
 
             //FUNCTION NAME PROMPT
