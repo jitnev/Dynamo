@@ -38,13 +38,21 @@ namespace ACGClientForCEF
 
             if (m.RequiresAuthorization)
             {
-                if (m.HttpMethod == Method.GET && (AuthProvider.SessionData == null ) && !m.Path.Contains("members"))
+                if (m.HttpMethod == Method.GET && !m.Path.Contains("members"))
                 {
-                    if (!AuthProvider.SessionData.ContainsKey("guest-session"))
+                    if ((AuthProvider.SessionData == null) && !AuthProvider.SessionData.ContainsKey("guest-session"))
                     {
-                        GetGuestSession();
+                        DynamoRequest guestSessionReq = new DynamoRequest("session?afc=DY1ONB", Method.GET);
+                        var tempReq = new RestRequest(guestSessionReq.Path, guestSessionReq.HttpMethod);
+                        var response = _client.Execute(tempReq);
+                        dynamic res = JsonConvert.DeserializeObject<dynamic>(response.Content);
+
+                        if (AuthProvider.SessionData == null)
+                            AuthProvider.SessionData = new System.Collections.Generic.Dictionary<string, string>();
+
+                        AuthProvider.SessionData.Add("guest-session", res.SESSION.ToString());
                     }
-                    req.AddHeader("X-Session", AuthProvider.SessionData["guest-session"]);
+                    AuthProvider.SignRequest(ref req, _client);
                 }
                 else
                     AuthProvider.SignRequest(ref req, _client);
@@ -76,7 +84,6 @@ namespace ACGClientForCEF
             return res;
         }
 
-
         public void GetGuestSession()
         {
             DynamoRequest guestSessionReq = new DynamoRequest("session?afc=DY1ONB", Method.GET);
@@ -89,5 +96,6 @@ namespace ACGClientForCEF
 
             AuthProvider.SessionData.Add("guest-session", res.SESSION.ToString());
         }
+
     }
 }
