@@ -2049,4 +2049,7 @@ Next assemblies were loaded several times:
   <data name="DynamoViewPackageMenuPackageManager" xml:space="preserve">
     <value>_Package Manager</value>
   </data>
+  <data name="PackageManagerViewTitle" xml:space="preserve">
+    <value>Package Manager</value>
+  </data>
 </root>

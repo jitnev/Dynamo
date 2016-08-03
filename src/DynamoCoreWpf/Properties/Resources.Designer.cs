@@ -3467,6 +3467,15 @@ namespace Dynamo.Wpf.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Package Manager.
+        /// </summary>
+        public static string PackageManagerViewTitle {
+            get {
+                return ResourceManager.GetString("PackageManagerViewTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Package Manager Website.
         /// </summary>
         public static string PackageManagerWebSiteButton {

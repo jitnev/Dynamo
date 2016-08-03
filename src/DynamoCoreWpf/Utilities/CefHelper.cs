@@ -24,5 +24,10 @@ namespace Dynamo.Wpf.Utilities
             this.dynamoViewModel = dynamoViewModel;
             this.Model = model;
         }
+
+        public bool Login()
+        {
+            return dynamoViewModel.Model.AuthenticationManager.AuthProvider.Login();
+        }
     }
 }
