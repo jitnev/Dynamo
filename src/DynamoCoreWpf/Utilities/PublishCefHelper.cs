@@ -36,6 +36,7 @@ using ACGClientForCEF.Requests;
 using Dynamo.PackageManager;
 using ACGClientForCEF.Models;
 using Dynamo.Graph.Nodes;
+using Dynamo.Configuration;
 
 namespace Dynamo.Wpf.Utilities
 {
@@ -543,6 +544,63 @@ namespace Dynamo.Wpf.Utilities
                 }
             }
             PublishPackageData.Contents += String.Join(", ", PackageAssemblyNodes.Select((node) => node.Name));
+        }
+
+        private void LoadNodesFromAssembly(Assembly assembly, string context, List<TypeLoadData> nodeModels,
+            List<TypeLoadData> migrationTypes)
+        {
+            if (assembly == null)
+                throw new ArgumentNullException("assembly");
+
+            Type[] loadedTypes = null;
+
+            try
+            {
+                loadedTypes = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                dynamoViewModel.Model.Logger.Log(Dynamo.Properties.Resources.CouldNotLoadTypes);
+                dynamoViewModel.Model.Logger.Log(e);
+                foreach (var ex in e.LoaderExceptions)
+                {
+                    dynamoViewModel.Model.Logger.Log(Dynamo.Properties.Resources.DllLoadException);
+                    dynamoViewModel.Model.Logger.Log(ex.ToString());
+                }
+            }
+            catch (Exception e)
+            {
+                dynamoViewModel.Model.Logger.Log(Dynamo.Properties.Resources.CouldNotLoadTypes);
+                dynamoViewModel.Model.Logger.Log(e);
+            }
+
+            foreach (var t in (loadedTypes ?? Enumerable.Empty<Type>()))
+            {
+                try
+                {
+                    //only load types that are in the right namespace, are not abstract
+                    //and have the elementname attribute
+                    if (!t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
+                    {
+                        //if we are running in revit (or any context other than NONE) use the DoNotLoadOnPlatforms attribute, 
+                        //if available, to discern whether we should load this type
+                        if (context.Equals(Context.NONE)
+                            || !t.GetCustomAttributes<DoNotLoadOnPlatformsAttribute>(false)
+                                .SelectMany(attr => attr.Values)
+                                .Any(e => e.Contains(context)))
+                        {
+                            nodeModels.Add(new TypeLoadData(t));
+                        }
+                    }
+
+                    
+                }
+                catch (Exception e)
+                {
+                    dynamoViewModel.Model.Logger.Log(String.Format(Dynamo.Properties.Resources.FailedToLoadType, assembly.FullName, t.FullName));
+                    dynamoViewModel.Model.Logger.Log(e);
+                }
+            }
         }
 
         private void AppendPackageContents()
