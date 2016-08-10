@@ -516,6 +516,7 @@ namespace Dynamo.Wpf.Utilities
 
         private void AppendAssemblyContents(List<string> files)
         {
+            List<string> typeMethods = new List<string>();
             foreach(var assembly in Assemblies)
             {
                 if(assembly.IsNodeLibrary)
@@ -531,18 +532,34 @@ namespace Dynamo.Wpf.Utilities
 
                     if (!NodeModelAssemblyLoader.ContainsNodeModelSubType(assem))
                     {
-                        return;
+                        Type[] types = assem.GetTypes();
+                        foreach (Type type in types)
+                        {
+                            if (!type.IsPublic)
+                            {
+                                continue;
+                            }
+                            var members = type.GetMembers().Where(mem => mem.DeclaringType.Name != "Object").ToList();
+                            foreach (MemberInfo member in members)
+                            {
+                                typeMethods.Add(type.Name + "." + member.Name);
+                            }
+                        }
+                        continue;
                     }
 
                     if (result)
                     {
                         var nodes = new List<TypeLoadData>();
                         dynamoViewModel.Model.Loader.LoadNodesFromAssembly(assem, dynamoViewModel.Model.Context, nodes, new List<TypeLoadData>());
-                        
                         PackageAssemblyNodes.AddRange(nodes);
                     }
                 }
             }
+
+            if(typeMethods.Count > 0)
+                PublishPackageData.Contents += String.Join(", ", typeMethods);
+
             PublishPackageData.Contents += String.Join(", ", PackageAssemblyNodes.Select((node) => node.Name));
         }
 
