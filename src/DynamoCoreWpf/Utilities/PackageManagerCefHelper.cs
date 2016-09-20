@@ -47,10 +47,7 @@ namespace Dynamo.Wpf.Utilities
                     _downloadRequest = JsonConvert.DeserializeObject<dynamic>(value);
             }
         }
-        public string InstalledPackages
-        {
-            get { return JsonConvert.SerializeObject(Model.LocalPackages.ToList()); }
-        }
+        
 
         internal void GoToWebsite()
         {

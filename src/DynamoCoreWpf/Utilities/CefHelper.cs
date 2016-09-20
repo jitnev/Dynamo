@@ -25,6 +25,11 @@ namespace Dynamo.Wpf.Utilities
             this.Model = model;
         }
 
+        public string InstalledPackages
+        {
+            get { return JsonConvert.SerializeObject(Model.LocalPackages.ToList()); }
+        }
+
         public bool Login()
         {
             return dynamoViewModel.Model.AuthenticationManager.AuthProvider.Login();

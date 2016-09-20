@@ -425,19 +425,27 @@ namespace Dynamo.Wpf.Utilities
 
         public bool CheckMemberPreference()
         {
-            DynamoRequest req = new DynamoRequest("members/20732030/preferences?namespace=123D", Method.GET);
+            DynamoRequest memberReq = new DynamoRequest("members", Method.GET);
+            var res = dynamoViewModel.Model.GetPackageManagerExtension().PackageManagerClient.ExecuteAndDeserializeDynamoCefRequest(memberReq);
+            string memberID = res.content.member.id;
+
+            DynamoRequest req = new DynamoRequest("members/" + memberID + "/preferences?namespace=123D", Method.GET);
 
             var response = dynamoViewModel.Model.GetPackageManagerExtension().PackageManagerClient.ExecuteAndDeserializeDynamoCefRequest(req);
             var content = response.content;
-            if (content.preferences["publish"] == null)
+            if (content.preferences["tou"] == null)
                 return false;
             else
-                return content.preferences["publish"].accepted;
+                return content.preferences["tou"].accepted;
         }
 
         public void UpdateMemberPreference()
         {
-            DynamoRequest req = new DynamoRequest("members/20732030/preferences?namespace=123D&preference_name=publish&preference_value={\"accepted\": true}", Method.PUT);
+            DynamoRequest memberReq = new DynamoRequest("members", Method.GET);
+            var res = dynamoViewModel.Model.GetPackageManagerExtension().PackageManagerClient.ExecuteAndDeserializeDynamoCefRequest(memberReq);
+            string memberID = res.content.member.id;
+
+            DynamoRequest req = new DynamoRequest("members/" + memberID + "/preferences?namespace=123D&preference_name=tou&preference_value={\"accepted\": true}", Method.PUT);
             var response = dynamoViewModel.Model.GetPackageManagerExtension().PackageManagerClient.ExecuteAndDeserializeDynamoCefRequest(req);
         }
 
@@ -532,18 +540,24 @@ namespace Dynamo.Wpf.Utilities
 
                     if (!NodeModelAssemblyLoader.ContainsNodeModelSubType(assem))
                     {
-                        Type[] types = assem.GetTypes();
-                        foreach (Type type in types)
+                        //Type[] types = assem.GetTypes();
+                        //foreach (Type type in types)
+                        //{
+                        //    if (!type.IsPublic)
+                        //    {
+                        //        continue;
+                        //    }
+                        //    var members = type.GetMembers().Where(mem => mem.DeclaringType.Name != "Object").ToList();
+                        //    foreach (MemberInfo member in members)
+                        //    {
+                        //        typeMethods.Add(type.Name + "." + member.Name);
+                        //    }
+                        //}
+                        try
                         {
-                            if (!type.IsPublic)
-                            {
-                                continue;
-                            }
-                            var members = type.GetMembers().Where(mem => mem.DeclaringType.Name != "Object").ToList();
-                            foreach (MemberInfo member in members)
-                            {
-                                typeMethods.Add(type.Name + "." + member.Name);
-                            }
+                            typeMethods.AddRange(dynamoViewModel.Model.LibraryServices.GetNodesFromZeroTouchAssem(assem.Location));
+                        }
+                        catch (Exception e) {
                         }
                         continue;
                     }

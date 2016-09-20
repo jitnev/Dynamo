@@ -115,10 +115,10 @@ namespace Dynamo.PackageManager
                 DynamoRequest req = new DynamoRequest("members/" + memberID + "/preferences?namespace=123D", Method.GET);
                 var response = ExecuteAndDeserializeDynamoCefRequest(req);
                 var content = response.content;
-                if (content.preferences["publish"] == null)
+                if (content.preferences["tou"] == null)
                     return false;
                 else
-                    return content.preferences["publish"].accepted;
+                    return content.preferences["tou"].accepted;
             }
             else
             {
@@ -126,7 +126,7 @@ namespace Dynamo.PackageManager
                 var res = ExecuteAndDeserializeDynamoCefRequest(memberReq);
                 string memberID = res.content.member.id;
 
-                DynamoRequest req = new DynamoRequest("members/" + memberID + "/preferences?namespace=123D&preference_name=publish&preference_value={\"accepted\": true}", Method.PUT);
+                DynamoRequest req = new DynamoRequest("members/" + memberID + "/preferences?namespace=123D&preference_name=tou&preference_value={\"accepted\": true}", Method.PUT);
                 var response = ExecuteAndDeserializeDynamoCefRequest(req);
                 return true;
             }

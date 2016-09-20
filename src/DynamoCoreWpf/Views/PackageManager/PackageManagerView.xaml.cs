@@ -33,6 +33,7 @@ namespace Dynamo.PackageManager.UI
             if (!Cef.IsInitialized)
             {
                 var settings = new CefSettings { RemoteDebuggingPort = 8088 };
+                settings.CefCommandLineArgs.Add("disable-gpu", "1");
                 Cef.Initialize(settings);
             }
             viewModel.PublishCompCefHelper.PublishSuccess += PackageViewModelOnPublishSuccess;
@@ -44,7 +45,7 @@ namespace Dynamo.PackageManager.UI
             this.viewModel.CefHelper.CefBrowser = this.cefBrowser;
 
             this.Height = (System.Windows.SystemParameters.PrimaryScreenHeight * 0.95);
-            this.Width = (System.Windows.SystemParameters.PrimaryScreenWidth * 0.90);
+            this.Width = (System.Windows.SystemParameters.PrimaryScreenWidth * 0.75);
         }
 
         private void PackageViewModelOnPublishSuccess(PublishCefHelper sender)

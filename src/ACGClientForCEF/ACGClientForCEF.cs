@@ -42,7 +42,7 @@ namespace ACGClientForCEF
                 {
                     if ((AuthProvider.SessionData == null) && !AuthProvider.SessionData.ContainsKey("guest-session"))
                     {
-                        DynamoRequest guestSessionReq = new DynamoRequest("session?afc=DY1ONB", Method.GET);
+                        DynamoRequest guestSessionReq = new DynamoRequest("session?afc=DY1ON1", Method.GET);
                         var tempReq = new RestRequest(guestSessionReq.Path, guestSessionReq.HttpMethod);
                         var response = _client.Execute(tempReq);
                         dynamic res = JsonConvert.DeserializeObject<dynamic>(response.Content);
@@ -86,7 +86,7 @@ namespace ACGClientForCEF
 
         public void GetGuestSession()
         {
-            DynamoRequest guestSessionReq = new DynamoRequest("session?afc=DY1ONB", Method.GET);
+            DynamoRequest guestSessionReq = new DynamoRequest("session?afc=DY1ON1", Method.GET);
             var tempReq = new RestRequest(guestSessionReq.Path, guestSessionReq.HttpMethod);
             var response = _client.Execute(tempReq);
             dynamic res = JsonConvert.DeserializeObject<dynamic>(response.Content);
