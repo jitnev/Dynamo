@@ -38,6 +38,7 @@ namespace Dynamo.PackageManager.UI
             }
             viewModel.PublishCompCefHelper.PublishSuccess += PackageViewModelOnPublishSuccess;
             InitializeComponent();
+            this.viewModel.CefHelper.ParentWindow = this;
             this.cefBrowser.RegisterJsObject("cefHelper", this.viewModel.CefHelper);
             this.cefBrowser.RegisterJsObject("publishCefHelper", this.viewModel.PublishCompCefHelper);
 

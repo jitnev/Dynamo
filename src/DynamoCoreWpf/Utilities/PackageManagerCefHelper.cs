@@ -21,6 +21,8 @@ using System.Configuration;
 using ACGClientForCEF.Requests;
 using ACGClientForCEF;
 using ACGClientForCEF.Utility;
+using System.Diagnostics;
+using Dynamo.UI;
 
 namespace Dynamo.Wpf.Utilities
 {
@@ -47,7 +49,21 @@ namespace Dynamo.Wpf.Utilities
                     _downloadRequest = JsonConvert.DeserializeObject<dynamic>(value);
             }
         }
-        
+
+        private dynamic _pkgRequest;
+        public dynamic PkgRequest
+        {
+            get { return _pkgRequest; }
+            set
+            {
+                if (value is Newtonsoft.Json.Linq.JObject)
+                    _pkgRequest = value;
+                else
+                    _pkgRequest = JsonConvert.DeserializeObject<dynamic>(value);
+            }
+        }
+
+        private string PackageInstallPath { get; set; }
 
         internal void GoToWebsite()
         {
@@ -80,6 +96,12 @@ namespace Dynamo.Wpf.Utilities
         }
         #endregion
 
+        private void CancelAction()
+        {
+            var script = string.Format("window['actionCanceled'] = true;");
+            CefBrowser.GetMainFrame().ExecuteJavaScriptAsync(script);
+        }
+
         private void InstallPackage(string downloadPath)
         {
             var firstOrDefault = Model.LocalPackages.FirstOrDefault(pkg => pkg.AssetID == DownloadRequest.asset_id.ToString());
@@ -106,7 +128,7 @@ namespace Dynamo.Wpf.Utilities
             packageDownloadHandle.Done(downloadPath);
 
             string installedPkgPath = string.Empty;
-            if (packageDownloadHandle.Extract(dynamoViewModel.Model, string.Empty, out installedPkgPath))
+            if (packageDownloadHandle.Extract(dynamoViewModel.Model, this.PackageInstallPath, out installedPkgPath))
             {
                 var p = Package.FromDirectory(installedPkgPath, dynamoViewModel.Model.Logger);
                 //TODO: Jitendra to see if assetID also uploaded, when package is uploaded.
@@ -117,6 +139,7 @@ namespace Dynamo.Wpf.Utilities
                 }));
                 packageDownloadHandle.DownloadState = PackageDownloadHandle.State.Installed;
                 PackageDownloadInstallState = State.Installed;
+                this.PackageInstallPath = string.Empty;
             }
 
         }
@@ -164,8 +187,61 @@ namespace Dynamo.Wpf.Utilities
             return tempOutput;
 
         }
-        public string PackageOnExecuted(dynamic asset, dynamic version, string downloadPath)
+
+        public string GetCustomPathForInstall()
         {
+            string downloadPath = string.Empty;
+
+            downloadPath = GetDownloadPath();
+
+            if (String.IsNullOrEmpty(downloadPath))
+                return string.Empty;
+
+            PackageInstallPath = downloadPath;
+
+            return downloadPath;
+        }
+
+        private string GetDownloadPath()
+        {
+            var args = new PackagePathEventArgs();
+
+            ShowFileDialog(args);
+
+            if (args.Cancel)
+                return string.Empty;
+
+            return args.Path;
+        }
+
+        private void ShowFileDialog(PackagePathEventArgs e)
+        {
+            string initialPath = dynamoViewModel.Model.PathManager.DefaultPackagesDirectory;
+
+            e.Cancel = true;
+
+            var dialog = new DynamoFolderBrowserDialog
+            {
+                // Navigate to initial folder.
+                SelectedPath = initialPath,
+                Title = "Install Path",
+                Owner = this.ParentWindow
+            };
+            Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    e.Cancel = false;
+                    e.Path = dialog.SelectedPath;
+                }
+            }));
+        }
+
+
+        public string PackageOnExecuted(dynamic asset, dynamic version)
+        {
+            string downloadPath = this.PackageInstallPath;
+
             List<dynamic> packageVersionData = new List<dynamic>();
             string msg = String.IsNullOrEmpty(downloadPath) ?
                 String.Format(Resources.MessageConfirmToInstallPackage, asset["asset_name"], version["version"]) :
@@ -182,183 +258,244 @@ namespace Dynamo.Wpf.Utilities
             else
                 PackagesToInstall.Clear();
 
-            if (result == MessageBoxResult.OK && !string.IsNullOrEmpty(version["dependencies"]))
+            if (result == MessageBoxResult.OK)
             {
-                // get all of the headers
-                DynamoRequest req;
-                string[] depends = version["dependencies"].Split(',');
-                foreach (string depend in depends)
+                if (!string.IsNullOrEmpty(version["dependencies"]))
                 {
-                    string[] temp = depend.Split('|');
-                    req = new DynamoRequest(("assets/" + temp[0] + "/customdata").Trim(), Method.GET);
-                    CefResponseWithContentBody response = dynamoViewModel.Model.GetPackageManagerExtension().PackageManagerClient.ExecuteAndDeserializeDynamoCefRequest(req);
-
-                    var res = response.content;
-
-                    if (res.custom_data.Count > 0)
+                    // get all of the headers
+                    DynamoRequest req;
+                    string[] depends = version["dependencies"].Split(',');
+                    foreach (string depend in depends)
                     {
-                        dynamic versionData;
-                        string json;
-                        for (int i = 0; i < res.custom_data.Count; i++)
-                        {
-                            if (res.custom_data[i].key == "version:" + temp[1])
-                            {
-                                json = System.Uri.UnescapeDataString(res.custom_data[i].data.ToString());
-                                versionData = JsonConvert.DeserializeObject<dynamic>(json);
-                                packageVersionData.Add(versionData);
+                        string[] temp = depend.Split('|');
+                        req = new DynamoRequest(("assets/" + temp[0] + "/customdata").Trim(), Method.GET);
+                        CefResponseWithContentBody response = dynamoViewModel.Model.GetPackageManagerExtension().PackageManagerClient.ExecuteAndDeserializeDynamoCefRequest(req);
 
-                                PackagesToInstall.Add(temp[0] + "," + versionData.file_id.Value);
+                        var res = response.content;
+
+                        if (res.custom_data.Count > 0)
+                        {
+                            dynamic versionData;
+                            string json;
+                            for (int i = 0; i < res.custom_data.Count; i++)
+                            {
+                                if (res.custom_data[i].key == "version:" + temp[1])
+                                {
+                                    json = System.Uri.UnescapeDataString(res.custom_data[i].data.ToString());
+                                    versionData = JsonConvert.DeserializeObject<dynamic>(json);
+                                    packageVersionData.Add(versionData);
+
+                                    PackagesToInstall.Add(temp[0] + "," + versionData.file_id.Value);
+                                }
                             }
                         }
+
                     }
 
+                    //    var headers = version.dependencies.Select(dep => dep.name).Select((id) =>
+                    //    {
+                    //        PackageHeader pkgHeader;
+                    //        var res = pmExt.PackageManagerClient.DownloadPackageHeader(id, out pkgHeader);
+
+                    //        if (!res.Success)
+                    //            MessageBox.Show(String.Format(Resources.MessageFailedToDownloadPackage, id),
+                    //                Resources.PackageDownloadErrorMessageBoxTitle,
+                    //                MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    //        return pkgHeader;
+                    //    }).ToList();
+
+                    //    // if any header download fails, abort
+                    //    if (headers.Any(x => x == null))
+                    //    {
+                    //        return;
+                    //    }
+
+                    //    var allPackageVersions = PackageManagerSearchElement.ListRequiredPackageVersions(headers, version);
+
+                    //    // determine if any of the packages contain binaries or python scripts.  
+                    //    var containsBinaries =
+                    //        allPackageVersions.Any(
+                    //            x => x.Item2.contents.Contains(PackageManagerClient.PackageContainsBinariesConstant) || x.Item2.contains_binaries);
+
+                    //    var containsPythonScripts =
+                    //        allPackageVersions.Any(
+                    //            x => x.Item2.contents.Contains(PackageManagerClient.PackageContainsPythonScriptsConstant));
+
+                    //    // if any do, notify user and allow cancellation
+                    //    if (containsBinaries || containsPythonScripts)
+                    //    {
+                    //        var res = MessageBox.Show(Resources.MessagePackageContainPythonScript,
+                    //            Resources.PackageDownloadMessageBoxTitle,
+                    //            MessageBoxButton.OKCancel, MessageBoxImage.Exclamation);
+
+                    //        if (res == MessageBoxResult.Cancel) return;
+                    //    }
+
+                    //    // Determine if there are any dependencies that are made with a newer version
+                    //    // of Dynamo (this includes the root package)
+                    //    var dynamoVersion = this.PackageManagerClientViewModel.DynamoViewModel.Model.Version;
+                    //    var dynamoVersionParsed = VersionUtilities.PartialParse(dynamoVersion, 3);
+                    //    var futureDeps = allPackageVersions.FilterFuturePackages(dynamoVersionParsed);
+
+                    //    // If any of the required packages use a newer version of Dynamo, show a dialog to the user
+                    //    // allowing them to cancel the package download
+                    //    if (futureDeps.Any())
+                    //    {
+                    //        var versionList = FormatPackageVersionList(futureDeps);
+
+                    //        if (MessageBox.Show(String.Format(Resources.MessagePackageNewerDynamo,
+                    //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
+                    //            versionList),
+                    //            string.Format(Resources.PackageUseNewerDynamoMessageBoxTitle,
+                    //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName),
+                    //            MessageBoxButton.OKCancel,
+                    //            MessageBoxImage.Warning) == MessageBoxResult.Cancel)
+                    //        {
+                    //            return;
+                    //        }
+                    //    }
+
+                    //    var localPkgs = pmExt.PackageLoader.LocalPackages;
+
+                    //    var uninstallsRequiringRestart = new List<Package>();
+                    //    var uninstallRequiringUserModifications = new List<Package>();
+                    //    var immediateUninstalls = new List<Package>();
+
+                    //    // if a package is already installed we need to uninstall it, allowing
+                    //    // the user to cancel if they do not want to uninstall the package
+                    //    foreach (var localPkg in headers.Select(x => localPkgs.FirstOrDefault(v => v.Name == x.name)))
+                    //    {
+                    //        if (localPkg == null) continue;
+
+                    //        if (localPkg.LoadedAssemblies.Any())
+                    //        {
+                    //            uninstallsRequiringRestart.Add(localPkg);
+                    //            continue;
+                    //        }
+
+                    //        if (localPkg.InUse(this.PackageManagerClientViewModel.DynamoViewModel.Model))
+                    //        {
+                    //            uninstallRequiringUserModifications.Add(localPkg);
+                    //            continue;
+                    //        }
+
+                    //        immediateUninstalls.Add(localPkg);
+                    //    }
+
+                    //    if (uninstallRequiringUserModifications.Any())
+                    //    {
+                    //        MessageBox.Show(String.Format(Resources.MessageUninstallToContinue,
+                    //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
+                    //            JoinPackageNames(uninstallRequiringUserModifications)),
+                    //            Resources.CannotDownloadPackageMessageBoxTitle,
+                    //            MessageBoxButton.OK, MessageBoxImage.Error);
+                    //        return;
+                    //    }
+
+                    //    var settings = PackageManagerClientViewModel.DynamoViewModel.Model.PreferenceSettings;
+
+                    //    if (uninstallsRequiringRestart.Any())
+                    //    {
+                    //        // mark for uninstallation
+                    //        uninstallsRequiringRestart.ForEach(
+                    //            x => x.MarkForUninstall(settings));
+
+                    //        MessageBox.Show(String.Format(Resources.MessageUninstallToContinue2,
+                    //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
+                    //            JoinPackageNames(uninstallsRequiringRestart)),
+                    //            Resources.CannotDownloadPackageMessageBoxTitle,
+                    //            MessageBoxButton.OK, MessageBoxImage.Error);
+                    //        return;
+                    //    }
+
+                    //    if (immediateUninstalls.Any())
+                    //    {
+                    //        // if the package is not in use, tell the user we will be uninstall it and give them the opportunity to cancel
+                    //        if (MessageBox.Show(String.Format(Resources.MessageAlreadyInstallDynamo,
+                    //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
+                    //            JoinPackageNames(immediateUninstalls)),
+                    //            Resources.DownloadWarningMessageBoxTitle,
+                    //            MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel)
+                    //            return;
+                    //    }
+
+                    //    // add custom path to custom package folder list
+                    //    if (!String.IsNullOrEmpty(downloadPath))
+                    //    {
+                    //        if (!settings.CustomPackageFolders.Contains(downloadPath))
+                    //            settings.CustomPackageFolders.Add(downloadPath);
+                    //    }
+
+                    //    // form header version pairs and download and install all packages
+                    //    allPackageVersions
+                    //            .Select(x => new PackageDownloadHandle(x.Item1, x.Item2))
+                    //            .ToList()
+                    //            .ForEach(x => this.PackageManagerClientViewModel.DownloadAndInstall(x, downloadPath));
+
+                    //}
                 }
 
-                //    var headers = version.dependencies.Select(dep => dep.name).Select((id) =>
-                //    {
-                //        PackageHeader pkgHeader;
-                //        var res = pmExt.PackageManagerClient.DownloadPackageHeader(id, out pkgHeader);
-
-                //        if (!res.Success)
-                //            MessageBox.Show(String.Format(Resources.MessageFailedToDownloadPackage, id),
-                //                Resources.PackageDownloadErrorMessageBoxTitle,
-                //                MessageBoxButton.OK, MessageBoxImage.Error);
-
-                //        return pkgHeader;
-                //    }).ToList();
-
-                //    // if any header download fails, abort
-                //    if (headers.Any(x => x == null))
-                //    {
-                //        return;
-                //    }
-
-                //    var allPackageVersions = PackageManagerSearchElement.ListRequiredPackageVersions(headers, version);
-
-                //    // determine if any of the packages contain binaries or python scripts.  
-                //    var containsBinaries =
-                //        allPackageVersions.Any(
-                //            x => x.Item2.contents.Contains(PackageManagerClient.PackageContainsBinariesConstant) || x.Item2.contains_binaries);
-
-                //    var containsPythonScripts =
-                //        allPackageVersions.Any(
-                //            x => x.Item2.contents.Contains(PackageManagerClient.PackageContainsPythonScriptsConstant));
-
-                //    // if any do, notify user and allow cancellation
-                //    if (containsBinaries || containsPythonScripts)
-                //    {
-                //        var res = MessageBox.Show(Resources.MessagePackageContainPythonScript,
-                //            Resources.PackageDownloadMessageBoxTitle,
-                //            MessageBoxButton.OKCancel, MessageBoxImage.Exclamation);
-
-                //        if (res == MessageBoxResult.Cancel) return;
-                //    }
-
-                //    // Determine if there are any dependencies that are made with a newer version
-                //    // of Dynamo (this includes the root package)
-                //    var dynamoVersion = this.PackageManagerClientViewModel.DynamoViewModel.Model.Version;
-                //    var dynamoVersionParsed = VersionUtilities.PartialParse(dynamoVersion, 3);
-                //    var futureDeps = allPackageVersions.FilterFuturePackages(dynamoVersionParsed);
-
-                //    // If any of the required packages use a newer version of Dynamo, show a dialog to the user
-                //    // allowing them to cancel the package download
-                //    if (futureDeps.Any())
-                //    {
-                //        var versionList = FormatPackageVersionList(futureDeps);
-
-                //        if (MessageBox.Show(String.Format(Resources.MessagePackageNewerDynamo,
-                //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
-                //            versionList),
-                //            string.Format(Resources.PackageUseNewerDynamoMessageBoxTitle,
-                //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName),
-                //            MessageBoxButton.OKCancel,
-                //            MessageBoxImage.Warning) == MessageBoxResult.Cancel)
-                //        {
-                //            return;
-                //        }
-                //    }
-
-                //    var localPkgs = pmExt.PackageLoader.LocalPackages;
-
-                //    var uninstallsRequiringRestart = new List<Package>();
-                //    var uninstallRequiringUserModifications = new List<Package>();
-                //    var immediateUninstalls = new List<Package>();
-
-                //    // if a package is already installed we need to uninstall it, allowing
-                //    // the user to cancel if they do not want to uninstall the package
-                //    foreach (var localPkg in headers.Select(x => localPkgs.FirstOrDefault(v => v.Name == x.name)))
-                //    {
-                //        if (localPkg == null) continue;
-
-                //        if (localPkg.LoadedAssemblies.Any())
-                //        {
-                //            uninstallsRequiringRestart.Add(localPkg);
-                //            continue;
-                //        }
-
-                //        if (localPkg.InUse(this.PackageManagerClientViewModel.DynamoViewModel.Model))
-                //        {
-                //            uninstallRequiringUserModifications.Add(localPkg);
-                //            continue;
-                //        }
-
-                //        immediateUninstalls.Add(localPkg);
-                //    }
-
-                //    if (uninstallRequiringUserModifications.Any())
-                //    {
-                //        MessageBox.Show(String.Format(Resources.MessageUninstallToContinue,
-                //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
-                //            JoinPackageNames(uninstallRequiringUserModifications)),
-                //            Resources.CannotDownloadPackageMessageBoxTitle,
-                //            MessageBoxButton.OK, MessageBoxImage.Error);
-                //        return;
-                //    }
-
-                //    var settings = PackageManagerClientViewModel.DynamoViewModel.Model.PreferenceSettings;
-
-                //    if (uninstallsRequiringRestart.Any())
-                //    {
-                //        // mark for uninstallation
-                //        uninstallsRequiringRestart.ForEach(
-                //            x => x.MarkForUninstall(settings));
-
-                //        MessageBox.Show(String.Format(Resources.MessageUninstallToContinue2,
-                //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
-                //            JoinPackageNames(uninstallsRequiringRestart)),
-                //            Resources.CannotDownloadPackageMessageBoxTitle,
-                //            MessageBoxButton.OK, MessageBoxImage.Error);
-                //        return;
-                //    }
-
-                //    if (immediateUninstalls.Any())
-                //    {
-                //        // if the package is not in use, tell the user we will be uninstall it and give them the opportunity to cancel
-                //        if (MessageBox.Show(String.Format(Resources.MessageAlreadyInstallDynamo,
-                //            PackageManagerClientViewModel.DynamoViewModel.BrandingResourceProvider.ProductName,
-                //            JoinPackageNames(immediateUninstalls)),
-                //            Resources.DownloadWarningMessageBoxTitle,
-                //            MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel)
-                //            return;
-                //    }
-
-                //    // add custom path to custom package folder list
-                //    if (!String.IsNullOrEmpty(downloadPath))
-                //    {
-                //        if (!settings.CustomPackageFolders.Contains(downloadPath))
-                //            settings.CustomPackageFolders.Add(downloadPath);
-                //    }
-
-                //    // form header version pairs and download and install all packages
-                //    allPackageVersions
-                //            .Select(x => new PackageDownloadHandle(x.Item1, x.Item2))
-                //            .ToList()
-                //            .ForEach(x => this.PackageManagerClientViewModel.DownloadAndInstall(x, downloadPath));
-
-                //}
-
+            }
+            else
+            {
+                //CancelAction();
+                return "cancel";
             }
             return String.Join("|", PackagesToInstall);
+        }
+
+        public bool Uninstall()
+        {
+            Package localPkg = Model.LocalPackages.Where(a => a.Name == this.PkgRequest.asset_name.ToString()).First();
+
+            if (localPkg.LoadedAssemblies.Any())
+            {
+                var resAssem =
+                    MessageBox.Show(string.Format(Resources.MessageNeedToRestart,
+                        dynamoViewModel.BrandingResourceProvider.ProductName),
+                        Resources.UninstallingPackageMessageBoxTitle,
+                        MessageBoxButton.OKCancel,
+                        MessageBoxImage.Exclamation);
+                if (resAssem == MessageBoxResult.Cancel) return false;
+            }
+
+            var res = MessageBox.Show(String.Format(Resources.MessageConfirmToUninstallPackage, localPkg.Name),
+                                      Resources.UninstallingPackageMessageBoxTitle,
+                                      MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (res == MessageBoxResult.No)
+            {
+                CancelAction();
+                return false;
+            }
+
+            try
+            {
+                var dynModel = dynamoViewModel.Model;
+                var pmExtension = dynModel.GetPackageManagerExtension();
+                Application.Current.Dispatcher.Invoke((Action)(() =>
+                {
+                    localPkg.UninstallCore(dynModel.CustomNodeManager, pmExtension.PackageLoader, dynModel.PreferenceSettings);
+                }));
+
+                return true;
+            }
+            catch (Exception)
+            {
+                MessageBox.Show(string.Format(Resources.MessageFailedToUninstall,
+                    dynamoViewModel.BrandingResourceProvider.ProductName),
+                    Resources.UninstallFailureMessageBoxTitle,
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+        }
+
+
+        private void GoToRootDirectory()
+        {
+            Package localPkg = Model.LocalPackages.Where(a => a.Name == this.PkgRequest.asset_name.ToString()).First();
+            Process.Start(localPkg.RootDirectory);
         }
     }
 }

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace Dynamo.Wpf.Utilities
 {
@@ -18,6 +19,8 @@ namespace Dynamo.Wpf.Utilities
         public ChromiumWebBrowser CefBrowser { get; set; }
 
         public string SessionData { get { return JsonConvert.SerializeObject(dynamoViewModel.Model.GetPackageManagerExtension().PackageManagerClient.GetSession()); } }
+
+        public Window ParentWindow { get; set; }
 
         public CefHelper(DynamoViewModel dynamoViewModel, PackageLoader model)
         {
