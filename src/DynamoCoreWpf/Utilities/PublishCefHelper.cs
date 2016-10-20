@@ -48,7 +48,9 @@ namespace Dynamo.Wpf.Utilities
 
         private dynamic _versionCustomData;
 
-        public PublishCefHelper(DynamoViewModel dynamoViewModel, PackageLoader model) : base(dynamoViewModel, model)
+        private PackageManagerViewModel packageMgrViewModel { get; set; }
+
+        public PublishCefHelper(DynamoViewModel dynamoViewModel, PackageLoader model, PackageManagerViewModel pkgManagerViewModel) : base(dynamoViewModel, model, pkgManagerViewModel)
         {
             fileCompressor = new MutatingFileCompressor();
             customNodeDefinitions = new List<CustomNodeDefinition>();
@@ -71,8 +73,7 @@ namespace Dynamo.Wpf.Utilities
             set;
         }
 
-        public ChromiumWebBrowser CefBrowser { get; set; }
-
+        public string FilesToUploadJson { get { return JsonConvert.SerializeObject(FilesToUpload); } }
         public dynamic PackageDetails { get; set; }
         public dynamic PackageCustomDetails { get; set; }
 
@@ -147,6 +148,15 @@ namespace Dynamo.Wpf.Utilities
 
         public event PublishSuccessHandler PublishSuccess;
         public List<PackageDependency> Dependencies { get; set; }
+
+        public event EventHandler<PackagePathEventArgs> RequestShowFolderBrowserDialog;
+        public virtual void OnRequestShowFileDialog(object sender, PackagePathEventArgs e)
+        {
+            if (RequestShowFolderBrowserDialog != null)
+            {
+                RequestShowFolderBrowserDialog(sender, e);
+            }
+        }
 
         public string[] ShowAddFileDialogAndAdd()
         {
@@ -327,7 +337,7 @@ namespace Dynamo.Wpf.Utilities
                     .Where(pkgLoader.IsUnderPackageControl)
                     .Select(pkgLoader.GetOwnerPackage)
                     .Where(x => x != null)
-                    .Where(x => (x.Name != Name))
+                    .Where(x => (x.Name != Name && x.AssetID != null && x.AssetID != ""))
                     .Distinct()
                     .Select(x => new PackageDependency(x.AssetID, x.VersionName));
 
@@ -351,7 +361,7 @@ namespace Dynamo.Wpf.Utilities
                 .Where(pkgLoader.IsUnderPackageControl)
                 .Select(pkgLoader.GetOwnerPackage)
                 .Where(x => x != null)
-                .Where(x => (x.Name != Name))
+                .Where(x => (x.Name != Name && x.AssetID != null && x.AssetID != ""))
                 .Distinct()
                 .Select(x => new PackageDependency(x.AssetID, x.VersionName));
 
@@ -362,7 +372,7 @@ namespace Dynamo.Wpf.Utilities
                 .Where(pkgLoader.IsUnderPackageControl)
                 .Select(pkgLoader.GetOwnerPackage)
                 .Where(x => x != null)
-                .Where(x => (x.Name != Name))
+                .Where(x => (x.Name != Name && x.AssetID != null && x.AssetID != ""))
                 .Distinct()
                 .Select(x => new PackageDependency(x.AssetID, x.VersionName));
 
@@ -720,7 +730,7 @@ namespace Dynamo.Wpf.Utilities
             return files;
         }
 
-        public static PackageManagerViewModel FromLocalPackage(DynamoViewModel dynamoViewModel, Package l)
+        public static PackageManagerViewModel FromLocalPackage(DynamoViewModel dynamoViewModel, Package l, PackageManagerViewModel pkgMgrViewModel=null)
         {
             var defs = new List<CustomNodeDefinition>();
 
@@ -736,26 +746,28 @@ namespace Dynamo.Wpf.Utilities
                 }
             }
 
-            var vm = new PackageManagerViewModel(dynamoViewModel, dynamoViewModel.Model.GetPackageManagerExtension().PackageLoader, "publish");
-            vm.PublishCompCefHelper = new PublishCefHelper(dynamoViewModel, dynamoViewModel.Model.GetPackageManagerExtension().PackageLoader)
-            {
-                Group = l.Group,
-                Description = l.Description,
-                Keywords = l.Keywords != null ? String.Join(" ", l.Keywords) : "",
-                CustomNodeDefinitions = defs,
-                Name = l.Name,
-                RepositoryUrl = l.RepositoryUrl ?? "",
-                SiteUrl = l.SiteUrl ?? "",
-                License = l.License,
-                PackageDetails = l,
-                PublishPackageData = l
-            };
+            var vm = pkgMgrViewModel != null ? pkgMgrViewModel : new PackageManagerViewModel(dynamoViewModel, dynamoViewModel.Model.GetPackageManagerExtension().PackageLoader, "publish");
+
+            //vm.PublishCompCefHelper = new PublishCefHelper(dynamoViewModel, dynamoViewModel.Model.GetPackageManagerExtension().PackageLoader, vm)
+            //{
+            vm.PublishCompCefHelper.Group = l.Group;
+            vm.PublishCompCefHelper.Description = l.Description;
+            vm.PublishCompCefHelper.Keywords = l.Keywords != null ? String.Join(" ", l.Keywords) : "";
+            vm.PublishCompCefHelper.CustomNodeDefinitions = defs;
+            vm.PublishCompCefHelper.Name = l.Name;
+            vm.PublishCompCefHelper.RepositoryUrl = l.RepositoryUrl ?? "";
+            vm.PublishCompCefHelper.SiteUrl = l.SiteUrl ?? "";
+            vm.PublishCompCefHelper.License = l.License;
+            vm.PublishCompCefHelper.PackageDetails = l;
+            vm.PublishCompCefHelper.PublishPackageData = l;
+            //};
 
             // add additional files
             l.EnumerateAdditionalFiles();
             foreach (var file in l.AdditionalFiles)
             {
                 vm.PublishCompCefHelper.AdditionalFiles.Add(file.Model.FullName);
+                vm.PublishCompCefHelper.FilesToUpload.Add(file.Model.FullName);
             }
 
             var nodeLibraryNames = l.Header.node_libraries;
@@ -774,11 +786,13 @@ namespace Dynamo.Wpf.Utilities
                         IsNodeLibrary = isNodeLibrary,
                         Assembly = assem
                     });
+                    vm.PublishCompCefHelper.FilesToUpload.Add(assem.FullName);
                 }
                 else
                 {
                     // if it's not a .NET assembly, we load it as an additional file
                     vm.PublishCompCefHelper.AdditionalFiles.Add(file);
+                    vm.PublishCompCefHelper.FilesToUpload.Add(file);
                 }
             }
 
@@ -794,6 +808,122 @@ namespace Dynamo.Wpf.Utilities
             vm.PublishCompCefHelper.PublishPackageData.AssetID = l.AssetID;
             vm.PublishCompCefHelper.AssetID = l.AssetID;
             return vm;
+        }
+
+        public void PublishLocally()
+        {
+            var publishPath = GetPublishFolder();
+            if (string.IsNullOrEmpty(publishPath))
+                return;
+
+            var files = BuildPackage();
+
+            try
+            {
+                //if buildPackage() returns no files then the package
+                //is empty so we should return
+                if (files == null || files.Count() < 1)
+                {
+                    return;
+                }
+                var script = string.Format("window['message'] = 'Copying'");
+                CefBrowser.GetMainFrame().ExecuteJavaScriptAsync(script);
+                
+                // begin publishing to local directory
+                var remapper = new CustomNodePathRemapper(dynamoViewModel.Model.CustomNodeManager,
+                    DynamoModel.IsTestMode);
+                var builder = new PackageDirectoryBuilder(new MutatingFileSystem(), remapper);
+                builder.BuildDirectory(PublishPackageData, publishPath, files);
+
+                script = string.Format("window['message'] = 'Published Locally'");
+                CefBrowser.GetMainFrame().ExecuteJavaScriptAsync(script);
+            }
+            catch (Exception e)
+            {
+                //ErrorString = e.Message;
+                dynamoViewModel.Model.Logger.Log(e);
+            }
+            finally
+            {
+                //Uploading = false;
+            }
+        }
+
+        private string GetPublishFolder()
+        {
+            var pathManager = dynamoViewModel.Model.PathManager as PathManager;
+            var setting = dynamoViewModel.PreferenceSettings;
+
+            var args = new PackagePathEventArgs
+            {
+                Path = pathManager.DefaultPackagesDirectory
+            };
+
+            OnRequestShowFileDialog(this, args);
+
+            if (args.Cancel)
+                return string.Empty;
+
+            var folder = args.Path;
+
+            if (!IsDirectoryWritable(folder))
+            {
+                //ErrorString = String.Format(Resources.FolderNotWritableError, folder);
+                return string.Empty;
+            }
+
+            var pkgSubFolder = Path.Combine(folder, PathManager.PackagesDirectoryName);
+
+            var index = pathManager.PackagesDirectories.IndexOf(folder);
+            var subFolderIndex = pathManager.PackagesDirectories.IndexOf(pkgSubFolder);
+
+            // This folder is not in the list of package folders.
+            // Add it to the list as the default
+            if (index == -1 && subFolderIndex == -1)
+            {
+                setting.CustomPackageFolders.Insert(0, folder);
+            }
+            else
+            {
+                // This folder has a package subfolder that is in the list.
+                // Make the subfolder the default
+                if (subFolderIndex != -1)
+                {
+                    index = subFolderIndex;
+                    folder = pkgSubFolder;
+                }
+
+                var temp = setting.CustomPackageFolders[index];
+                setting.CustomPackageFolders[index] = setting.CustomPackageFolders[0];
+                setting.CustomPackageFolders[0] = temp;
+
+            }
+
+            return folder;
+        }
+
+        private bool IsDirectoryWritable(string dirPath, bool throwIfFails = false)
+        {
+            try
+            {
+                using (var fs = File.Create(
+                    Path.Combine(
+                        dirPath,
+                        Path.GetRandomFileName()
+                    ),
+                    1,
+                    FileOptions.DeleteOnClose)
+                )
+                { }
+                return true;
+            }
+            catch
+            {
+                if (throwIfFails)
+                    throw;
+                else
+                    return false;
+            }
         }
 
         #region "Version Data Properties"

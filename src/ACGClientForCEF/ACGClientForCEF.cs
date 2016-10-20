@@ -38,8 +38,10 @@ namespace ACGClientForCEF
 
             if (m.RequiresAuthorization)
             {
-                if (m.HttpMethod == Method.GET && !m.Path.Contains("members"))
+                /*
+                if (m.HttpMethod != Method.GET || m.Path.Contains("members"))
                 {
+                    
                     if ((AuthProvider.SessionData == null) && !AuthProvider.SessionData.ContainsKey("guest-session"))
                     {
                         DynamoRequest guestSessionReq = new DynamoRequest("session?afc=DY1ON1", Method.GET);
@@ -54,7 +56,7 @@ namespace ACGClientForCEF
                     }
                     AuthProvider.SignRequest(ref req, _client);
                 }
-                else
+                else*/
                     AuthProvider.SignRequest(ref req, _client);
             }
             if (m.fileRequest)

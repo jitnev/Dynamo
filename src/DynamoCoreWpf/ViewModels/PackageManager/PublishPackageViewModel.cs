@@ -15,7 +15,7 @@ namespace Dynamo.PackageManager
         /// The class constructor. </summary>
         public PublishPackageViewModel(DynamoViewModel dynamoViewModel)
         {
-            CefHelper = new PublishCefHelper(dynamoViewModel, null);
+            CefHelper = new PublishCefHelper(dynamoViewModel, null, null);
         }
 
     }

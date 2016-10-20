@@ -25,13 +25,14 @@ using System.Diagnostics;
 using Dynamo.UI;
 using Dynamo.Utilities;
 using System.Threading;
+using Dynamo.Models;
 
 namespace Dynamo.Wpf.Utilities
 {
     internal class PackageManagerCefHelper : CefHelper, IDownloadHandler
     {
 
-        public PackageManagerCefHelper(DynamoViewModel dynamoViewModel, PackageLoader model) : base(dynamoViewModel, model)
+        public PackageManagerCefHelper(DynamoViewModel dynamoViewModel, PackageLoader model, PackageManagerViewModel pkgManagerViewModel) : base(dynamoViewModel, model, pkgManagerViewModel)
         {
         }
 
@@ -524,6 +525,17 @@ namespace Dynamo.Wpf.Utilities
             {
                 pkg.UnmarkForUninstall(dynamoViewModel.Model.PreferenceSettings);
             }
+        }
+
+        public void PublishNewPackageVersion()
+        {
+            Package pkg = Model.LocalPackages.Where(a => a.Name == this.PkgRequest.asset_name.ToString()).First();
+            pkg.RefreshCustomNodesFromDirectory(dynamoViewModel.Model.CustomNodeManager, DynamoModel.IsTestMode);
+            var vm = PublishCefHelper.FromLocalPackage(dynamoViewModel, pkg, PackageMgrViewMdodel);
+            vm.PublishCompCefHelper.IsNewVersion = true;
+            //PackageMgrViewMdodel.PublishCompCefHelper = vm.PublishCompCefHelper;
+            //dynamoViewModel.OnRequestPackagePublishDialog(vm);
+            
         }
     }
 }

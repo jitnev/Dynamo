@@ -22,10 +22,13 @@ namespace Dynamo.Wpf.Utilities
 
         public Window ParentWindow { get; set; }
 
-        public CefHelper(DynamoViewModel dynamoViewModel, PackageLoader model)
+        public PackageManagerViewModel PackageMgrViewMdodel { get; set; }
+
+        public CefHelper(DynamoViewModel dynamoViewModel, PackageLoader model, PackageManagerViewModel packageMgrViewModel)
         {
             this.dynamoViewModel = dynamoViewModel;
             this.Model = model;
+            this.PackageMgrViewMdodel = packageMgrViewModel;
         }
 
         public string InstalledPackages

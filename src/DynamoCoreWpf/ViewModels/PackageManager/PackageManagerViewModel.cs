@@ -18,8 +18,8 @@ namespace Dynamo.PackageManager
 
         public PackageManagerViewModel(DynamoViewModel dynamoViewModel, PackageLoader model, string address)
         {
-            CefHelper = new PackageManagerCefHelper(dynamoViewModel, model);
-            PublishCompCefHelper = new PublishCefHelper(dynamoViewModel, model);
+            CefHelper = new PackageManagerCefHelper(dynamoViewModel, model, this);
+            PublishCompCefHelper = new PublishCefHelper(dynamoViewModel, model, this);
 
             var path = this.GetType().Assembly.Location;
             var config = ConfigurationManager.OpenExeConfiguration(path);

@@ -44,6 +44,7 @@ namespace Dynamo.PackageManager.UI
 
             this.cefBrowser.DownloadHandler = this.viewModel.CefHelper;
             this.viewModel.CefHelper.CefBrowser = this.cefBrowser;
+            this.viewModel.PublishCompCefHelper.CefBrowser = this.cefBrowser;
 
             this.Height = (System.Windows.SystemParameters.PrimaryScreenHeight * 0.95);
             this.Width = (System.Windows.SystemParameters.PrimaryScreenWidth * 0.75);

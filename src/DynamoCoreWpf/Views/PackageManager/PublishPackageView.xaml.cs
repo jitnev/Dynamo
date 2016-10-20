@@ -35,7 +35,7 @@ namespace Dynamo.PackageManager
             //this.browser = new ChromiumWebBrowser();
             //this.browser.RegisterJsObject("cefHelper", packageViewModel.CefHelper, true);
            
-            //packageViewModel.CefHelper.CefBrowser = browser;
+            packageViewModel.CefHelper.CefBrowser = browser;
             
             this.Height = (System.Windows.SystemParameters.PrimaryScreenHeight * 0.95);
             this.Width = (System.Windows.SystemParameters.PrimaryScreenWidth * 0.75);
