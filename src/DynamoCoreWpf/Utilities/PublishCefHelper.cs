@@ -146,6 +146,8 @@ namespace Dynamo.Wpf.Utilities
             }
         }
 
+        public bool PublishLocal { get; set; }
+
         public event PublishSuccessHandler PublishSuccess;
         public List<PackageDependency> Dependencies { get; set; }
 
@@ -339,7 +341,7 @@ namespace Dynamo.Wpf.Utilities
                     .Where(x => x != null)
                     .Where(x => (x.Name != Name && x.AssetID != null && x.AssetID != ""))
                     .Distinct()
-                    .Select(x => new PackageDependency(x.AssetID, x.VersionName));
+                    .Select(x => new PackageDependency(x.AssetID, x.VersionName + "|" + x.Name));
 
             workspaces = new List<CustomNodeWorkspaceModel>();
             foreach (var def in AllFuncDefs())
@@ -363,7 +365,7 @@ namespace Dynamo.Wpf.Utilities
                 .Where(x => x != null)
                 .Where(x => (x.Name != Name && x.AssetID != null && x.AssetID != ""))
                 .Distinct()
-                .Select(x => new PackageDependency(x.AssetID, x.VersionName));
+                .Select(x => new PackageDependency(x.AssetID, x.VersionName + "|" + x.Name));
 
             var dsFunctionPackages = workspaces
                 .SelectMany(x => x.Nodes)
@@ -374,7 +376,7 @@ namespace Dynamo.Wpf.Utilities
                 .Where(x => x != null)
                 .Where(x => (x.Name != Name && x.AssetID != null && x.AssetID != ""))
                 .Distinct()
-                .Select(x => new PackageDependency(x.AssetID, x.VersionName));
+                .Select(x => new PackageDependency(x.AssetID, x.VersionName + "|" + x.Name));
 
             return allFilePackages.Union(allTypePackages).Union(dsFunctionPackages);
 
@@ -761,6 +763,11 @@ namespace Dynamo.Wpf.Utilities
             vm.PublishCompCefHelper.PackageDetails = l;
             vm.PublishCompCefHelper.PublishPackageData = l;
             //};
+            
+            //Clear previous values
+            vm.PublishCompCefHelper.FilesToUpload.Clear();
+            vm.PublishCompCefHelper.IsNewVersion = false;
+            vm.PublishCompCefHelper.PublishLocal = false;
 
             // add additional files
             l.EnumerateAdditionalFiles();

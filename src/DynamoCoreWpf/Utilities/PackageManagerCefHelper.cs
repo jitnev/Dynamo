@@ -537,5 +537,17 @@ namespace Dynamo.Wpf.Utilities
             //dynamoViewModel.OnRequestPackagePublishDialog(vm);
             
         }
+
+        public void PublishLocalPackage()
+        {
+            Package pkg = Model.LocalPackages.Where(a => a.Name == this.PkgRequest.asset_name.ToString()).First();
+            pkg.RefreshCustomNodesFromDirectory(dynamoViewModel.Model.CustomNodeManager, DynamoModel.IsTestMode);
+            var vm = PublishCefHelper.FromLocalPackage(dynamoViewModel, pkg, PackageMgrViewMdodel);
+            vm.PublishCompCefHelper.IsNewVersion = false;
+            vm.PublishCompCefHelper.PublishLocal = true;
+            //PackageMgrViewMdodel.PublishCompCefHelper = vm.PublishCompCefHelper;
+            //dynamoViewModel.OnRequestPackagePublishDialog(vm);
+
+        }
     }
 }

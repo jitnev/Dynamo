@@ -402,7 +402,7 @@ namespace Dynamo.ViewModels
         public bool CanPublishSelectedNodes(object m)
         {
             return DynamoSelection.Instance.Selection.Count > 0 &&
-                   DynamoSelection.Instance.Selection.All(x => x is Function) && AuthenticationManager.HasAuthProvider; ;
+                   DynamoSelection.Instance.Selection.All(x => x is Function) && AuthenticationManager.HasAuthProvider; 
         }
 
         private void ShowNodePublishInfo()
@@ -447,6 +447,7 @@ namespace Dynamo.ViewModels
             }
 
             var newPkgVm = new PackageManagerViewModel(DynamoViewModel, DynamoViewModel.Model.GetPackageManagerExtension().PackageLoader, "publish");
+            newPkgVm.PublishCompCefHelper.PublishLocal = true;
             newPkgVm.PublishCompCefHelper.CustomNodeDefinitions = funcDefs.Select(pair => pair.Item2).ToList();
 
             DynamoViewModel.OnRequestPackagePublishDialog(newPkgVm);
