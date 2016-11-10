@@ -240,7 +240,10 @@ namespace Dynamo.PackageManager
 
         internal Dictionary<string,string> GetSession()
         {
-            return cefClient.AuthProvider.SessionData;
+            if (cefClient.AuthProvider != null)
+                return cefClient.AuthProvider.SessionData;
+            else
+                return new Dictionary<string, string>();
         }
 
         internal void GetGuestSession()
